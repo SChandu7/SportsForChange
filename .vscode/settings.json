@@ -1,0 +1,4 @@
+{
+    "java.compile.nullAnalysis.mode": "automatic",
+    "cmake.sourceDirectory": "F:/Dart Flutter/Flutter projects/flutterapp/linux"
+}

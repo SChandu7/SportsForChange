@@ -2,33 +2,49 @@ import 'dart:io';
 import 'dart:math';
 import 'package:animate_do/animate_do.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'resource.dart';
+import 'loginsignup.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'dart:typed_data';
 import 'package:http_parser/http_parser.dart'; // For content type
 import 'package:mime/mime.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  final prefs = await SharedPreferences.getInstance();
+  String? username = prefs.getString('username');
+
   runApp(
-    // Wrap the app with ChangeNotifierProvider to provide Resource globally
-    ChangeNotifierProvider(create: (context) => resource(), child: MyApp()),
+    ChangeNotifierProvider(
+      create: (context) => resource(),
+      child: MyApp(username: username),
+    ),
   );
 }
 
 class MyApp extends StatelessWidget {
+  final String? username;
+
+  MyApp({required this.username}); // Constructor
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // title: 'Global State Management',
       debugShowCheckedModeBanner: false,
-      home: SchoolsHomePage(), // Set the initial screen directly
+      home: username == null
+          ? LoginPage()
+          : SchoolsHomePage(
+              username: username ?? 'nothing',
+            ), // You can route to SchoolsHomePage if needed
     );
   }
 }
@@ -390,7 +406,7 @@ class _HomePageState extends State<HomePage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => SchoolsHomePage(),
+                              builder: (context) => LoginPage(),
                             ),
                           );
                         }
@@ -636,9 +652,9 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
- }
+}
 
-   Widget buildIconButtonWithBorder(IconData icon, VoidCallback onPressed) {
+Widget buildIconButtonWithBorder(IconData icon, VoidCallback onPressed) {
   return Container(
     decoration: BoxDecoration(
       gradient: const LinearGradient(
@@ -1357,7 +1373,6 @@ class CircularButton extends StatelessWidget {
   }
 }
 
-
 class NewScreen extends StatefulWidget {
   const NewScreen({super.key});
 
@@ -1596,662 +1611,6 @@ class BufferPopup {
           ],
         );
       },
-    );
-  }
-}
-
-class LoginPage extends StatefulWidget {
-  @override
-  _LoginPageState createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _GetUsername = TextEditingController();
-  final TextEditingController _GetUserPassword = TextEditingController();
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  String? _errorMessage;
-  var obj_popup = popup();
-  bool eye = true;
-  String selectedRole = "default"; // Default role
-  String PresentUser = "default";
-
-  // Default credentials for temporary login
-  final String _defaultUsername = "admin";
-  final String _defaultPassword = "admin123";
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: KeyboardVisibilityBuilder(
-        builder: (context, isKeyboardVisible) {
-          return SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height,
-              ),
-              child: IntrinsicHeight(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(45),
-                          bottomRight: Radius.circular(45),
-                        ),
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          colors: [
-                            Colors.orange.shade900,
-                            Colors.orange.shade800,
-                            Colors.orange.shade400,
-                          ],
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          const SizedBox(height: 90),
-                          Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                FadeInUp(
-                                  duration: const Duration(milliseconds: 800),
-                                  child: const Text(
-                                    "Login",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 40,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                FadeInUp(
-                                  duration: const Duration(milliseconds: 1100),
-                                  child: const Text(
-                                    "Welcome Back",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(10),
-                            topRight: Radius.circular(10),
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(30),
-                          child: Column(
-                            children: <Widget>[
-                              const SizedBox(height: 60),
-                              FadeInUp(
-                                duration: const Duration(milliseconds: 1200),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(10),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Color.fromRGBO(225, 95, 27, .3),
-                                        blurRadius: 20,
-                                        offset: Offset(0, 10),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    children: <Widget>[
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color: Colors.grey.shade200,
-                                            ),
-                                          ),
-                                        ),
-                                        child: TextFormField(
-                                          controller: _GetUsername,
-                                          decoration: const InputDecoration(
-                                            hintText: "Email or Phone number",
-                                            hintStyle: TextStyle(
-                                              color: Colors.grey,
-                                            ),
-                                            border: InputBorder.none,
-                                            prefixIcon: const Icon(
-                                              Icons.verified_user,
-                                              color: Colors.orangeAccent,
-                                            ),
-                                          ),
-                                          validator: (value) {
-                                            if (value == null ||
-                                                value.isEmpty) {
-                                              return "Username cannot be empty.";
-                                            }
-                                            return null;
-                                          },
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color: Colors.grey.shade200,
-                                            ),
-                                          ),
-                                        ),
-                                        child: TextFormField(
-                                          controller: _GetUserPassword,
-                                          obscureText: eye,
-                                          decoration: InputDecoration(
-                                            hintText: "Password",
-                                            hintStyle: const TextStyle(
-                                              color: Colors.grey,
-                                            ),
-                                            suffix: InkWell(
-                                              onTap: () {
-                                                print("visible");
-                                                if (eye == false) {
-                                                  eye = true;
-                                                } else if (eye == true) {
-                                                  eye = false;
-                                                }
-                                                setState(() {});
-                                              },
-                                              child: Icon(
-                                                // iconColor: Colors.red,
-                                                (eye == true)
-                                                    ? Icons.visibility_off
-                                                    : Icons.visibility,
-                                                color: Colors.lightBlue,
-                                                size: 22,
-                                              ),
-                                            ),
-                                            prefixIcon: const Icon(
-                                              Icons.lock,
-                                              color: Colors.orangeAccent,
-                                            ),
-                                            border: InputBorder.none,
-                                          ),
-                                          validator: (value) {
-                                            if (value == null ||
-                                                value.isEmpty) {
-                                              return "Password cannot be empty.";
-                                            }
-                                            return null;
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 40),
-                              FadeInUp(
-                                duration: const Duration(milliseconds: 1300),
-                                child: const Text(
-                                  "Forgot Password?",
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ),
-                              const SizedBox(height: 40),
-                              FadeInUp(
-                                duration: const Duration(milliseconds: 1400),
-                                child: MaterialButton(
-                                  onPressed: () {
-                                    // Validate the username and password
-                                    if (_GetUsername.text.toString() ==
-                                            'student' &&
-                                        _GetUserPassword.text.toString() ==
-                                            'student123') {
-                                      // Successful login: Call the login method
-                                      Provider.of<resource>(
-                                        context,
-                                        listen: false,
-                                      ).setLoginDetails('student');
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => SchoolsHomePage(),
-                                        ),
-                                      );
-                                      // This will update the role and navigate back to Homepage
-                                    } else if (_GetUsername.text.toString() ==
-                                            'staff' &&
-                                        _GetUserPassword.text.toString() ==
-                                            'staff123') {
-                                      Provider.of<resource>(
-                                        context,
-                                        listen: false,
-                                      ).setLoginDetails('staff');
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => SchoolsHomePage(),
-                                        ),
-                                      );
-                                    } else if (_GetUsername.text.toString() ==
-                                            'admin' &&
-                                        _GetUserPassword.text.toString() ==
-                                            'admin123') {
-                                      Provider.of<resource>(
-                                        context,
-                                        listen: false,
-                                      ).setLoginDetails('admin');
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => SchoolsHomePage(),
-                                        ),
-                                      );
-                                    } else {
-                                      // Show popup for incorrect credentials
-                                      obj_popup.showPopup(
-                                        context,
-                                        "Wrong Credentials",
-                                        "Entered Data is Incorrect",
-                                      );
-                                    }
-                                  },
-                                  height: 50,
-                                  color: Colors.orange[900],
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(50),
-                                  ),
-                                  child: const Center(
-                                    child: Text(
-                                      "Login",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 50),
-                              FadeInUp(
-                                duration: const Duration(milliseconds: 1500),
-                                child: InkWell(
-                                  onTap: () {
-                                    // Add your desired action here
-                                    print(
-                                      "Text clicked: Navigate to the Sign-Up Page or Perform Action",
-                                    );
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => SignUpPage(),
-                                      ),
-                                    );
-                                  },
-                                  child: const Text(
-                                    "Didn't Sign up? Let's Do..",
-                                    style: TextStyle(color: Colors.grey),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 30),
-                              Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: FadeInUp(
-                                      duration: const Duration(
-                                        milliseconds: 1600,
-                                      ),
-                                      child: MaterialButton(
-                                        onPressed: () {},
-                                        height: 50,
-                                        color: Colors.blue,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            50,
-                                          ),
-                                        ),
-                                        child: const Center(
-                                          child: Text(
-                                            "Facebook",
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 30),
-                                  Expanded(
-                                    child: FadeInUp(
-                                      duration: const Duration(
-                                        milliseconds: 1700,
-                                      ),
-                                      child: MaterialButton(
-                                        onPressed: () {},
-                                        height: 50,
-                                        color: Colors.black,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            50,
-                                          ),
-                                        ),
-                                        child: const Center(
-                                          child: Text(
-                                            "Google",
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class SignUpPage extends StatefulWidget {
-  @override
-  _SignUpPageState createState() => _SignUpPageState();
-}
-
-class _SignUpPageState extends State<SignUpPage> {
-  final ImagePicker _imagePicker = ImagePicker();
-  XFile? _selectedImage;
-
-  String _selectedGender = "Select Gender";
-  String _selectedRole = "Select Role";
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              colors: [
-                Colors.orange.shade900,
-                Colors.orange.shade800,
-                Colors.orange.shade400,
-              ],
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const SizedBox(height: 75),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    FadeInDown(
-                      duration: const Duration(milliseconds: 900),
-                      child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Sign Up",
-                            style: TextStyle(color: Colors.white, fontSize: 40),
-                          ),
-                          SizedBox(height: 1),
-                          Text(
-                            "Create a new account",
-                            style: TextStyle(color: Colors.white, fontSize: 18),
-                          ),
-                        ],
-                      ),
-                    ),
-                    FadeInDown(
-                      duration: const Duration(milliseconds: 900),
-                      child: GestureDetector(
-                        onTap: () async {
-                          final image = await _imagePicker.pickImage(
-                            source: ImageSource.gallery,
-                          );
-                          setState(() {});
-                          BufferPopup bufferPopup = BufferPopup();
-                          bufferPopup.showBufferPopup(
-                            context,
-                            "Uploading..",
-                            "please wait",
-                            "Uploaded Complete",
-                          );
-
-                          // Perform your image upload or processing logic here
-                          await Future.delayed(Duration(seconds: 1));
-                          if (image != null) {
-                            setState(() {
-                              _selectedImage = image;
-                            });
-                          }
-                        },
-                        child: CircleAvatar(
-                          radius: 40,
-                          backgroundColor: Colors.white,
-                          backgroundImage: _selectedImage != null
-                              ? FileImage(File(_selectedImage!.path))
-                              : null,
-                          child: _selectedImage == null
-                              ? const Icon(
-                                  Icons.add_a_photo,
-                                  size: 30,
-                                  color: Colors.orange,
-                                )
-                              : null,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(40),
-                    topRight: Radius.circular(40),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(30),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 20),
-                      _buildInputField(
-                        hintText: "Full Name",
-                        icon: Icons.person,
-                      ),
-                      const SizedBox(height: 15),
-                      _buildInputField(
-                        hintText: "Mobile Number",
-                        icon: Icons.phone,
-                        inputType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 15),
-                      _buildDropdownField(
-                        context,
-                        title: _selectedGender,
-                        icon: Icons.person_outline,
-                        items: ["Male", "Female", "Other"],
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedGender = value!;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 15),
-                      _buildDropdownField(
-                        context,
-                        title: _selectedRole,
-                        icon: Icons.people_outline,
-                        items: ["Student", "Staff", "Admin"],
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedRole = value!;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 15),
-                      _buildInputField(hintText: "Address", icon: Icons.home),
-                      const SizedBox(height: 15),
-                      _buildInputField(
-                        hintText: "Username",
-                        icon: Icons.verified_user,
-                      ),
-                      FadeInDown(
-                        duration: const Duration(milliseconds: 600),
-                        child: const SizedBox(height: 15),
-                      ),
-                      _buildInputField(
-                        hintText: "Password",
-                        icon: Icons.lock,
-                        obscureText: true,
-                      ),
-                      const SizedBox(height: 30),
-                      FadeInDown(
-                        duration: const Duration(milliseconds: 700),
-                        child: MaterialButton(
-                          onPressed: () {
-                            // You can add your sign-up logic here
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => LoginPage(),
-                              ),
-                            );
-                          },
-                          height: 50,
-                          color: Colors.orange.shade900,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(50),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              "Sign Up",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputField({
-    required String hintText,
-    required IconData icon,
-    bool obscureText = false,
-    TextInputType inputType = TextInputType.text,
-  }) {
-    return FadeInDown(
-      duration: const Duration(milliseconds: 800),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: const [
-            BoxShadow(
-              color: Color.fromRGBO(225, 95, 27, .3),
-              blurRadius: 20,
-              offset: Offset(0, 10),
-            ),
-          ],
-        ),
-        child: TextField(
-          obscureText: obscureText,
-          keyboardType: inputType,
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: const TextStyle(color: Colors.grey),
-            border: InputBorder.none,
-            prefixIcon: Icon(icon, color: Colors.orange),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDropdownField(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return FadeInDown(
-      duration: const Duration(milliseconds: 800),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: const [
-            BoxShadow(
-              color: Color.fromRGBO(225, 95, 27, .3),
-              blurRadius: 20,
-              offset: Offset(0, 10),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: DropdownButtonFormField<String>(
-          decoration: InputDecoration(
-            border: InputBorder.none,
-            prefixIcon: Icon(icon, color: Colors.orange),
-          ),
-          value: title == "Select Gender" || title == "Select Role"
-              ? null
-              : title,
-          hint: Text(title, style: const TextStyle(color: Colors.grey)),
-          items: items.map((item) {
-            return DropdownMenuItem(value: item, child: Text(item));
-          }).toList(),
-          onChanged: onChanged,
-        ),
-      ),
     );
   }
 }
@@ -3153,7 +2512,6 @@ class DashboardPage extends StatelessWidget {
   }
 }
 
-
 class InfoPage extends StatefulWidget {
   @override
   _InfoPageState createState() => _InfoPageState();
@@ -3348,14 +2706,19 @@ class _InfoPageState extends State<InfoPage>
 }
 
 class SchoolsHomePage extends StatefulWidget {
+  final String username;
+
+  SchoolsHomePage({required this.username});
   @override
   _SchoolsHomePageState createState() => _SchoolsHomePageState();
 }
+
 class _SchoolsHomePageState extends State<SchoolsHomePage> {
   final List<String> schools = [for (int i = 1; i <= 11; i++) 'School $i'];
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final Map<String, Map<String, Map<String, dynamic>>> activities = {};
   int _currentIndex = 0;
+  late String presentUser;
 
   void addActivity(String school, String day, Map<String, dynamic> data) {
     setState(() {
@@ -3365,130 +2728,175 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
   }
 
   void fetchActivitiesFromBackend() async {
-  final url = Uri.parse('http://65.1.134.172:8000/getsportsdailyactivity');
-  try {
-    final response = await http.get(url);
+    final url = Uri.parse('http://65.1.134.172:8000/getsportsdailyactivity');
+    try {
+      final response = await http.get(url);
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
 
-      for (var item in data) {
-        String school = item['school'];
-        String rawDate = item['date']; // e.g. "6/8/2025"
-        String date = rawDate; // default fallback
+        for (var item in data) {
+          String school = item['school'];
+          String rawDate = item['date']; // e.g. "6/8/2025"
+          String date = rawDate; // default fallback
 
-        // Format the date as dd-MM-yyyy
-        try {
-          List<String> parts = rawDate.split('/');
-          if (parts.length == 3) {
-            int month = int.parse(parts[0]);
-            int day = int.parse(parts[1]);
-            int year = int.parse(parts[2]);
-            date =
-                "${day.toString().padLeft(2, '0')}-${month.toString().padLeft(2, '0')}-${year}";
+          // Format the date as dd-MM-yyyy
+          try {
+            List<String> parts = rawDate.split('/');
+            if (parts.length == 3) {
+              int month = int.parse(parts[0]);
+              int day = int.parse(parts[1]);
+              int year = int.parse(parts[2]);
+              date =
+                  "${day.toString().padLeft(2, '0')}-${month.toString().padLeft(2, '0')}-${year}";
+            }
+          } catch (e) {
+            print("Date parse error: $e");
           }
-        } catch (e) {
-          print("Date parse error: $e");
+
+          String time = item['time']; // e.g. "04:00 PM"
+          String ptName = item['pt_name'];
+          String activityType = item['activity_type'];
+          String gameName = item['game_name'];
+
+          // Extract image URLs as dummy XFile placeholders
+          List<dynamic> images = item['images'];
+          List<XFile> imageFiles = images.map<XFile>((img) {
+            return XFile(img['image_url']); // S3 URL
+          }).toList();
+
+          setState(() {
+            activities.putIfAbsent(school, () => {});
+            String finalKey = date;
+            int count = 1;
+            while (activities[school]!.containsKey(finalKey)) {
+              count++;
+              finalKey = '${date}_$count';
+            }
+
+            activities[school]![finalKey] = {
+              'ptName': ptName,
+              'activityType': activityType,
+              'gameName': gameName,
+              'time': time,
+              'images': imageFiles,
+            };
+          });
         }
-
-        String time = item['time']; // e.g. "04:00 PM"
-        String ptName = item['pt_name'];
-        String activityType = item['activity_type'];
-        String gameName = item['game_name'];
-
-        // Extract image URLs as dummy XFile placeholders
-        List<dynamic> images = item['images'];
-        List<XFile> imageFiles = images.map<XFile>((img) {
-          return XFile(img['image_url']); // S3 URL
-        }).toList();
-
-        setState(() {
-          activities.putIfAbsent(school, () => {});
-          String finalKey = date;
-          int count = 1;
-          while (activities[school]!.containsKey(finalKey)) {
-            count++;
-            finalKey = '${date}_$count';
-          }
-
-          activities[school]![finalKey] = {
-            'ptName': ptName,
-            'activityType': activityType,
-            'gameName': gameName,
-            'time': time,
-            'images': imageFiles,
-          };
-        });
+      } else {
+        print("Error fetching activities: ${response.statusCode}");
       }
-    } else {
-      print("Error fetching activities: ${response.statusCode}");
+    } catch (e) {
+      print("Exception: $e");
     }
-  } catch (e) {
-    print("Exception: $e");
   }
- }
-
 
   @override
   void initState() {
     super.initState();
+    presentUser = widget.username; // ✅ Access it like this
+
     fetchActivitiesFromBackend();
+  }
+
+  Future<String?> fetchUserProfileImageUrl(String username) async {
+    const baseUrl = 'https://djangotestcase.s3.ap-south-1.amazonaws.com/';
+    final extensions = ['jpg', 'jpeg', 'png'];
+
+    for (String ext in extensions) {
+      final url = '$baseUrl${username}profile.$ext';
+      try {
+        final response = await http.head(Uri.parse(url));
+        if (response.statusCode == 200) {
+          return url;
+        }
+      } catch (_) {
+        // continue trying other extensions
+      }
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      drawer: Drawer(
-        width: MediaQuery.of(context).size.width * 0.69,
-        child: Column(
-          children: [
-            const UserAccountsDrawerHeader(
-              accountName: Text("S Chandu"),
-              accountEmail: Text("Administrator"),
-              currentAccountPicture: CircleAvatar(
-                backgroundImage: AssetImage('assets/imgicon1.png'),
-              ),
-              decoration: BoxDecoration(color: Colors.blue),
+      drawer: Consumer<resource>(
+        builder: (context, resource, child) {
+          presentUser = widget.username;
+          return Drawer(
+            child: Column(
+              children: [
+                UserAccountsDrawerHeader(
+                  accountName: Text(widget.username),
+                  accountEmail: Text(presentUser),
+
+                  currentAccountPicture: FutureBuilder<String?>(
+                    future: fetchUserProfileImageUrl(presentUser),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const CircleAvatar(
+                          child: CircularProgressIndicator(),
+                        );
+                      } else if (snapshot.hasData && snapshot.data != null) {
+                        return CircleAvatar(
+                          backgroundImage: NetworkImage(snapshot.data!),
+                        );
+                      } else {
+                        return const CircleAvatar(
+                          backgroundImage: AssetImage(
+                            'assets/imgicon1.png',
+                          ), // fallback
+                        );
+                      }
+                    },
+                  ),
+                  decoration: BoxDecoration(color: Colors.orangeAccent),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.person),
+                  title: const Text("Profile....."),
+                  onTap: () {
+                    print("Profile tapped");
+                    Navigator.pop(context); // Close the drawer
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.help),
+                  title: const Text("Help"),
+                  onTap: () {
+                    print("Help tapped");
+                    Navigator.pop(context); // Close the drawer
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.contact_emergency),
+                  title: const Text("Raise Query"),
+                  onTap: () {
+                    print("Info tapped");
+                    Navigator.pop(context); // Close the drawer
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.settings),
+                  title: const Text("Settings"),
+                  onTap: () {
+                    print("Settings tapped");
+                    Navigator.pop(context); // Close the drawer
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text("Profile"),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.help),
-              title: const Text("Help"),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.contact_emergency),
-              title: const Text("Raise Query"),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text("Settings"),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
+          );
+        },
       ),
       appBar: AppBar(
-        title: const Text("Sports Daily Activities"),
+        title: const Text("Sports Daily Activities....."),
         centerTitle: true,
         backgroundColor: Colors.orangeAccent,
         leading: IconButton(
           icon: const Icon(Icons.menu),
-          onPressed: () {
+          onPressed: () async {
             _scaffoldKey.currentState?.openDrawer();
           },
         ),
@@ -3504,28 +2912,32 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
                   const PopupMenuItem(value: 2, child: Text("Log-out")),
                   const PopupMenuItem(value: 3, child: Text("Help")),
                 ],
-              ).then((value) {
+              ).then((value) async {
                 if (value == 1) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => LoginPage()),
                   );
                 } else if (value == 2) {
-                  Provider.of<resource>(context, listen: false)
-                      .setLoginDetails('default');
+                  Provider.of<resource>(
+                    context,
+                    listen: false,
+                  ).setLoginDetails('default');
                   BufferPopup().showBufferPopup(
                     context,
                     'Logging Out..',
                     resource().PresentWorkingUser,
                     'Logged Out ',
                   );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Logged out")),
-                  );
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('username');
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text("Logged out")));
                 } else if (value == 3) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Help tapped")),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text("Help tapped")));
                 }
               });
             },
@@ -3542,9 +2954,9 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
-  icon: Icon(Icons.content_paste),
-  label: 'Activities',
- ),
+            icon: Icon(Icons.content_paste),
+            label: 'Activities',
+          ),
 
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart),
@@ -3561,11 +2973,14 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
                   context: context,
                   isScrollControlled: true,
                   shape: const RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(14)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(14),
+                    ),
                   ),
-                  builder: (_) =>
-                      ActivityFormSheet(schools: schools, onSubmit: addActivity),
+                  builder: (_) => ActivityFormSheet(
+                    schools: schools,
+                    onSubmit: addActivity,
+                  ),
                 ),
                 child: const Icon(Icons.add, size: 36),
               ),
@@ -3642,10 +3057,6 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
     );
   }
 }
-
-
-
-
 
 class SchoolDetailsPage extends StatelessWidget {
   final String schoolName;

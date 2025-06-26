@@ -47,29 +47,30 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCDfkhm8RZ37dAYwKEMxrk-kPYNkjEqBEU',
-    appId: '1:897066582164:web:350ef390beaff3f27f3481',
-    messagingSenderId: '897066582164',
-    projectId: 'sportsforchange-35208',
-    authDomain: 'sportsforchange-35208.firebaseapp.com',
-    storageBucket: 'sportsforchange-35208.firebasestorage.app',
-    measurementId: 'G-1KM9Z8S6XR',
+    apiKey: 'AIzaSyCaibv786VHT0dUk_hPPSDi5oX32oP4k-M',
+    appId: '1:169752099031:web:7fa5e01026ed8800195892',
+    messagingSenderId: '169752099031',
+    projectId: 'sportsforchangeproject',
+    authDomain: 'sportsforchangeproject.firebaseapp.com',
+    storageBucket: 'sportsforchangeproject.firebasestorage.app',
+    measurementId: 'G-C6G2YKX8CW',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBuEt8AezQiAmMz-9hMDLLIMsy40NleHaY',
-    appId: '1:897066582164:android:da837837ffaf621f7f3481',
-    messagingSenderId: '897066582164',
-    projectId: 'sportsforchange-35208',
-    storageBucket: 'sportsforchange-35208.firebasestorage.app',
+    apiKey: 'AIzaSyCWOU5DRVgRs0iw_GsBFWmntfYUyY-_FZc',
+    appId: '1:169752099031:android:891a4f4ec0f01437195892',
+    messagingSenderId: '169752099031',
+    projectId: 'sportsforchangeproject',
+    storageBucket: 'sportsforchangeproject.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCN7nDii-1wq98B511I9_iTvtW9-44DyXw',
-    appId: '1:897066582164:ios:c90382a15c4857f97f3481',
-    messagingSenderId: '897066582164',
-    projectId: 'sportsforchange-35208',
-    storageBucket: 'sportsforchange-35208.firebasestorage.app',
+    apiKey: 'AIzaSyBUdlAI_U8pUAVyduagPjnQ5E9X5hMpZGk',
+    appId: '1:169752099031:ios:1b71bbf2ba127748195892',
+    messagingSenderId: '169752099031',
+    projectId: 'sportsforchangeproject',
+    storageBucket: 'sportsforchangeproject.firebasestorage.app',
     iosBundleId: 'com.example.sportsdemo',
   );
+
 }

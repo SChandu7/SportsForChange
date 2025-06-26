@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -419,6 +420,52 @@ class _LoginPageState extends State<LoginPage> {
                                         }
 
                                         bool _navigated = false;
+
+                                        try {
+                                          final tokenResponse = await http.post(
+                                            Uri.parse(
+                                              'http://65.1.134.172:8000/postsportsnotificationtoken/',
+                                            ),
+                                            headers: {
+                                              'Content-Type':
+                                                  'application/json',
+                                            },
+                                            body: jsonEncode({
+                                              'username': username,
+                                              'device_token': fcmToken,
+                                            }),
+                                          );
+
+                                          if (tokenResponse.statusCode == 201) {
+                                            print(
+                                              "✅ FCM token successfully sent to Django.",
+                                            );
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  '✅ FCM token successfully sent to Django. ',
+                                                ),
+                                              ),
+                                            );
+
+                                            // Save the token in SharedPreferences
+                                            await prefs.setString(
+                                              'fcmToken',
+                                              fcmToken ?? '',
+                                            );
+                                            print(
+                                              "✅ FCM token saved to SharedPreferences.",
+                                            );
+                                          } else {
+                                            print(
+                                              "❌ Token save failed: ${tokenResponse.body}",
+                                            );
+                                          }
+                                        } catch (e) {
+                                          print("❌ Token API call error: $e");
+                                        }
 
                                         // Automatically navigate after 3 seconds
                                         Future.delayed(

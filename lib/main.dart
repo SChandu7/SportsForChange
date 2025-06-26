@@ -15,10 +15,35 @@ import 'package:http_parser/http_parser.dart'; // For content type
 import 'package:mime/mime.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/services.dart'; // required for SystemNavigator
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(); // Ensure Firebase initialized
+  print('✅ BG Message: ${message.messageId}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  const AndroidInitializationSettings androidSettings =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  const InitializationSettings initSettings = InitializationSettings(
+    android: androidSettings,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(initSettings);
 
   final prefs = await SharedPreferences.getInstance();
   String? username = prefs.getString('username');
@@ -31,20 +56,65 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   final String? username;
 
-  MyApp({required this.username}); // Constructor
+  MyApp({required this.username});
+
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    requestNotificationPermission();
+    setupFCMListener();
+  }
+
+  void setupFCMListener() {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      RemoteNotification? notification = message.notification;
+      AndroidNotification? android = message.notification?.android;
+
+      if (notification != null && android != null) {
+        flutterLocalNotificationsPlugin.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'high_importance_channel',
+              'High Importance Notifications',
+              channelDescription: 'Channel for showing important notifications',
+              importance: Importance.max,
+              priority: Priority.high,
+            ),
+          ),
+        );
+      }
+    });
+  }
+
+  void requestNotificationPermission() async {
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
+      await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: username == null
+      home: widget.username == null
           ? LoginPage()
-          : SchoolsHomePage(
-              username: username ?? 'nothing',
-            ), // You can route to SchoolsHomePage if needed
+          : SchoolsHomePage(username: widget.username ?? 'nothing'),
     );
   }
 }
@@ -1604,9 +1674,10 @@ class BufferPopup {
             TextButton(
               onPressed: () {
                 // Close the success dialog
-                Navigator.of(context).pop();
+
+                SystemNavigator.pop();
               },
-              child: const Text("Ok"),
+              child: const Text("Exit"),
             ),
           ],
         );
@@ -2791,10 +2862,17 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
     }
   }
 
+  void requestNotificationPermission() async {
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    presentUser = widget.username; // ✅ Access it like this
+    presentUser = widget.username;
+    requestNotificationPermission(); // ✅ Access it like this
 
     fetchActivitiesFromBackend();
   }
@@ -2891,7 +2969,7 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
         },
       ),
       appBar: AppBar(
-        title: const Text("Sports Daily Activities....."),
+        title: const Text("Sports Daily Activities"),
         centerTitle: true,
         backgroundColor: Colors.orangeAccent,
         leading: IconButton(
@@ -2910,6 +2988,7 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
                 items: [
                   const PopupMenuItem(value: 1, child: Text("Log-in")),
                   const PopupMenuItem(value: 2, child: Text("Log-out")),
+                  const PopupMenuItem(value: 3, child: Text("View")),
                   const PopupMenuItem(value: 3, child: Text("Help")),
                 ],
               ).then((value) async {
@@ -2919,6 +2998,9 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
                     MaterialPageRoute(builder: (context) => LoginPage()),
                   );
                 } else if (value == 2) {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('username');
+
                   Provider.of<resource>(
                     context,
                     listen: false,
@@ -2929,15 +3011,22 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
                     resource().PresentWorkingUser,
                     'Logged Out ',
                   );
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.remove('username');
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text("Logged out")));
                 } else if (value == 3) {
+                  // ScaffoldMessenger.of(
+                  //   context,
+                  // ).showSnackBar(const SnackBar(content: Text("Help tapped")));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => HomePageState()),
+                  );
+                } else if (value == 4) {
                   ScaffoldMessenger.of(
                     context,
                   ).showSnackBar(const SnackBar(content: Text("Help tapped")));
+                  // Navigator.push(
+                  //   context,
+                  //   MaterialPageRoute(builder: (context) => LoginPage()),
+                  // );
                 }
               });
             },
@@ -3216,7 +3305,6 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
     }
   }
 
-  // For file type detection
   void _submit() async {
     if (_formKey.currentState!.validate() &&
         selectedSchool != null &&
@@ -3224,7 +3312,7 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
         selectedHour != null &&
         selectedAmPm != null &&
         selectedDuration != null) {
-      setState(() => _isLoading = true); // ⏳ Show loading
+      setState(() => _isLoading = true);
 
       _formKey.currentState!.save();
 
@@ -3265,25 +3353,55 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
 
       try {
         final response = await request.send();
-
-        setState(() => _isLoading = false); // ✅ Hide loading
+        setState(() => _isLoading = false);
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           final resBody = await response.stream.bytesToString();
-          print("Activity submitted successfully!");
-          print("Response: $resBody");
-
+          print("✅ Activity submitted!");
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('✅ Activity submitted successfully!'),
+              content: Text('✅ Activity submitted '),
               backgroundColor: Colors.green,
             ),
           );
 
-          Navigator.pop(context); // or clear form
+          // Step 2: Fetch all device tokens
+          final tokenResponse = await http.get(
+            Uri.parse("http://65.1.134.172:8000/getsportsnotificationtoken/"),
+          );
+
+          if (tokenResponse.statusCode == 200) {
+            final data = jsonDecode(tokenResponse.body);
+            final List<dynamic> tokens = data['tokens'];
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('$tokens'), backgroundColor: Colors.green),
+            );
+
+            await http.post(
+              Uri.parse("http://65.1.134.172:8000/sendnotificationtoall/"),
+              headers: {"Content-Type": "application/json"},
+              body: jsonEncode({
+                "title": "New PT Activity!",
+                "body": "Football Match at 5 PM on Ground A",
+              }),
+            );
+
+            print("🔔 Notifications sent to ${tokens.length} devices.");
+          } else {
+            print("⚠️ Failed to fetch tokens: ${tokenResponse.body}");
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Activity submitted & notifications sent!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          Navigator.pop(context);
         } else {
           final err = await response.stream.bytesToString();
-          print("Error: $err");
+          print("❌ Submission error: $err");
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -3293,12 +3411,12 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
           );
         }
       } catch (e) {
-        setState(() => _isLoading = false); // ❌ Hide on error
-        print("Error submitting activity: $e");
+        setState(() => _isLoading = false);
+        print("❌ Exception: $e");
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('⚠️ Error occurred while submitting.'),
+            content: Text('⚠️ Error occurred while submitting.  $e'),
             backgroundColor: Colors.orange,
           ),
         );

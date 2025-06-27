@@ -21,6 +21,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -2790,6 +2791,23 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
   final Map<String, Map<String, Map<String, dynamic>>> activities = {};
   int _currentIndex = 0;
   late String presentUser;
+  bool _showForm = false;
+  String _selectedGender = 'Male';
+
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _dobController = TextEditingController();
+  File? _selectedImage;
+
+  Future<void> _pickImage() async {
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+      });
+    }
+  }
 
   void addActivity(String school, String day, Map<String, dynamic> data) {
     setState(() {
@@ -3017,7 +3035,7 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
                   // ).showSnackBar(const SnackBar(content: Text("Help tapped")));
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => HomePageState()),
+                    MaterialPageRoute(builder: (context) => HomePage()),
                   );
                 } else if (value == 4) {
                   ScaffoldMessenger.of(
@@ -3138,63 +3156,546 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
   }
 
   Widget _buildReportSection() {
-    return const Center(
-      child: Text(
-        'Reports Coming Soon',
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+    return Scaffold(
+      backgroundColor: Colors.grey.shade200,
+
+      floatingActionButton: !_showForm
+          ? FloatingActionButton(
+              onPressed: () {
+                setState(() {
+                  _showForm = true;
+                });
+              },
+              child: const Icon(Icons.app_registration, size: 36),
+            )
+          : null, // Hide FAB when form is open
+      body: Stack(
+        children: [
+          if (_showForm)
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 12,
+                  color: Colors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'REGISTRATION FORM',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.deepPurple,
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                          _buildField('Full Name'),
+                          _buildField('School Name'),
+                          _buildDatePickerField('Date of Birth'),
+                          SizedBox(height: 7),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: _buildField('Age')),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: _selectedGender.isNotEmpty
+                                      ? _selectedGender
+                                      : null,
+                                  decoration: InputDecoration(
+                                    labelText: "Gender",
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  items: ['Male', 'Female']
+                                      .map(
+                                        (String gender) => DropdownMenuItem(
+                                          value: gender,
+                                          child: Text(gender),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedGender = value!;
+                                    });
+                                  },
+                                  validator: (value) =>
+                                      value == null || value.isEmpty
+                                      ? 'Please select gender'
+                                      : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 8),
+                          _buildField('Address'),
+                          SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(child: _buildField('Zip Code')),
+                              SizedBox(width: 12),
+                              Expanded(child: _buildField('Sign Here')),
+                            ],
+                          ),
+                          SizedBox(height: 8),
+                          _buildField('Describe Yourself', maxLines: 3),
+                          SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  setState(() => _showForm = false);
+                                },
+                                icon: Icon(Icons.close, color: Colors.white),
+                                label: Text(
+                                  'Close',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.redAccent,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  if (_formKey.currentState!.validate()) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Submitted Successfully'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: Icon(Icons.send, color: Colors.white),
+                                label: Text(
+                                  'Submit',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.deepPurple,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildField(String label, {int maxLines = 1}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: TextFormField(
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        ),
+        validator: (value) =>
+            value == null || value.isEmpty ? 'Enter $label' : null,
+      ),
+    );
+  }
+
+  Widget _buildDatePickerField(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: TextFormField(
+        controller: _dobController,
+        readOnly: true,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          suffixIcon: Icon(Icons.calendar_today),
+        ),
+        onTap: () async {
+          DateTime? pickedDate = await showDatePicker(
+            context: context,
+            firstDate: DateTime(1990),
+            lastDate: DateTime(2100),
+            initialDate: DateTime.now(),
+          );
+          if (pickedDate != null) {
+            _dobController.text =
+                "${pickedDate.day}-${pickedDate.month}-${pickedDate.year}";
+          }
+        },
+        validator: (value) =>
+            value == null || value.isEmpty ? 'Select $label' : null,
       ),
     );
   }
 }
 
-class SchoolDetailsPage extends StatelessWidget {
+class SchoolDetailsPage extends StatefulWidget {
   final String schoolName;
   final Map<String, Map<String, dynamic>> activities;
 
   SchoolDetailsPage({required this.schoolName, required this.activities});
 
   @override
+  _SchoolDetailsPageState createState() => _SchoolDetailsPageState();
+}
+
+class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchResult = '';
+  Map<DateTime, List<Map<String, dynamic>>> _events = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _prepareEvents();
+  }
+
+  void _prepareEvents() {
+    widget.activities.forEach((dateString, data) {
+      try {
+        final parts = dateString.split('-');
+        if (parts.length == 3) {
+          int day = int.parse(parts[0]);
+          int month = int.parse(parts[1]);
+          int year = int.parse(parts[2]);
+          final date = DateTime(year, month, day);
+          _events[date] = _events[date] ?? [];
+          _events[date]!.add(data);
+        }
+      } catch (e) {
+        print('Date parse error: $e');
+      }
+    });
+  }
+
+  List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
+    return _events[DateTime(day.year, day.month, day.day)] ?? [];
+  }
+
+  void _searchDate() {
+    FocusScope.of(context).unfocus();
+    try {
+      final parts = _searchController.text.split('-');
+      if (parts.length == 3) {
+        int day = int.parse(parts[0]);
+        int month = int.parse(parts[1]);
+        int year = int.parse(parts[2]);
+        final date = DateTime(year, month, day);
+        final events = _getEventsForDay(date);
+
+        if (events.isNotEmpty) {
+          setState(() {
+            _selectedDay = date;
+            _focusedDay = date;
+          });
+        } else {
+          setState(() => _searchResult = 'No activity on selected date.');
+        }
+      }
+    } catch (e) {
+      setState(() => _searchResult = 'Invalid date format. Use dd-mm-yyyy');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final days = activities.keys.toList();
+    final selectedEvents = _selectedDay != null
+        ? _getEventsForDay(_selectedDay!)
+        : [];
 
     return Scaffold(
-      appBar: AppBar(title: Text('$schoolName Activities')),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: days.length,
-        itemBuilder: (context, index) {
-          final data = activities[days[index]]!;
-          return Card(
-            margin: EdgeInsets.symmetric(vertical: 8),
-            elevation: 4,
-            shape: RoundedRectangleBorder(
+      resizeToAvoidBottomInset: true,
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text('${widget.schoolName} Activities Calendar'),
+        backgroundColor: Colors.orangeAccent,
+        elevation: 4,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Material(
+              elevation: 6,
               borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.deepPurple.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search (dd-mm-yyyy)',
+                          border: InputBorder.none,
+                          icon: Icon(Icons.search, color: Colors.deepPurple),
+                        ),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: _searchDate,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text("Go", style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            child: ListTile(
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
+            const SizedBox(height: 4),
+
+            if (_searchResult.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Text(_searchResult, style: TextStyle(color: Colors.red)),
               ),
-              leading: Icon(Icons.calendar_today, color: Colors.blue),
-              title: Text(
-                days[index],
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            Padding(
+              padding: const EdgeInsets.only(top: 20.0, bottom: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 6,
+                        backgroundColor: Colors.deepPurple,
+                      ),
+                      SizedBox(width: 6),
+                      Text("Available", style: TextStyle(fontSize: 14)),
+                    ],
+                  ),
+                  SizedBox(width: 20),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 6,
+                        backgroundColor: Colors.grey[300],
+                      ),
+                      SizedBox(width: 6),
+                      Text("Unavailable", style: TextStyle(fontSize: 14)),
+                    ],
+                  ),
+                ],
               ),
-              subtitle: Text(data['activityType']),
-              trailing: Icon(Icons.arrow_forward_ios),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ActivityDetailsPage(
-                    schoolName: schoolName,
-                    date: days[index],
-                    data: data,
+            ),
+
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.deepPurple.shade50,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: TableCalendar(
+                  firstDay: DateTime.utc(2020, 1, 1),
+                  lastDay: DateTime.utc(2030, 12, 31),
+                  focusedDay: _focusedDay,
+                  calendarFormat: _calendarFormat,
+                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                  eventLoader: _getEventsForDay,
+                  onDaySelected: (selectedDay, focusedDay) {
+                    setState(() {
+                      _selectedDay = selectedDay;
+                      _focusedDay = focusedDay;
+                    });
+                  },
+                  onFormatChanged: (format) {
+                    setState(() {
+                      _calendarFormat = format;
+                    });
+                  },
+                  onPageChanged: (focusedDay) {
+                    _focusedDay = focusedDay;
+                  },
+                  headerStyle: HeaderStyle(
+                    titleTextStyle: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+                    formatButtonDecoration: BoxDecoration(
+                      color: Colors.deepPurple,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    formatButtonTextStyle: TextStyle(color: Colors.white),
+                    leftChevronIcon: Icon(
+                      Icons.chevron_left,
+                      color: Colors.deepPurple,
+                    ),
+                    rightChevronIcon: Icon(
+                      Icons.chevron_right,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                  calendarStyle: CalendarStyle(
+                    todayDecoration: BoxDecoration(
+                      color: Colors.orange,
+                      shape: BoxShape.circle,
+                    ),
+                    selectedDecoration: BoxDecoration(
+                      color: Colors.deepPurple,
+                      shape: BoxShape.circle,
+                    ),
+                    defaultTextStyle: TextStyle(fontWeight: FontWeight.w500),
+                    weekendTextStyle: TextStyle(color: Colors.redAccent),
+                    outsideDaysVisible: false,
+                  ),
+                  calendarBuilders: CalendarBuilders(
+                    markerBuilder: (context, day, events) {
+                      return SizedBox();
+                    },
+                    defaultBuilder: (context, day, focusedDay) {
+                      final isAvailable = _getEventsForDay(day).isNotEmpty;
+                      return Center(
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: isAvailable
+                                ? Colors.deepPurple
+                                : Colors.grey[200],
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '${day.day}',
+                            style: TextStyle(
+                              color: isAvailable
+                                  ? Colors.white
+                                  : Colors.black87,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
             ),
-          );
-        },
+            const SizedBox(height: 20),
+            if (selectedEvents.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 1.0,
+                  vertical: 1,
+                ),
+                child: Container(
+                  width: double.infinity, // Ensures full width
+                  child: Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 6,
+                    child: Stack(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "PT Name: ${selectedEvents.first['ptName']}",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                "Activity Type: ${selectedEvents.first['activityType']}",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                              Text(
+                                "Game Name: ${selectedEvents.first['gameName']}",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                              Text(
+                                "Time : ${selectedEvents.first['time']}",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                              SizedBox(height: 5),
+                            ],
+                          ),
+                        ),
+                        Positioned(
+                          top: 10,
+                          right: 15,
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.remove_red_eye,
+                              color: Colors.deepPurple,
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ActivityDetailsPage(
+                                    schoolName: widget.schoolName,
+                                    date:
+                                        '${_selectedDay!.day.toString().padLeft(2, '0')}-${_selectedDay!.month.toString().padLeft(2, '0')}-${_selectedDay!.year}',
+                                    data: selectedEvents.first,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -3248,14 +3749,14 @@ class ActivityDetailsPage extends StatelessWidget {
                 ),
                 SizedBox(height: 12),
                 Row(
-                  children: (data['images'] as List<XFile>)
+                  children: (data['images'] as List)
                       .map(
                         (file) => Padding(
                           padding: const EdgeInsets.only(right: 8.0),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: Image.network(
-                              file.path, // ✅ This will be a real S3 URL
+                              file.path,
                               width: 100,
                               height: 100,
                               fit: BoxFit.cover,

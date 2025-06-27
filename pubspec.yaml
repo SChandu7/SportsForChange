@@ -50,7 +50,7 @@ dependencies:
   url_launcher: ^6.1.7
   firebase_core: ^3.14.0
   flutter_local_notifications: ^19.3.0
-
+  table_calendar: ^3.2.0
   permission_handler: ^11.0.0
 
   

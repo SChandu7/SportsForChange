@@ -22,6 +22,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:intl/intl.dart';
+import 'package:syncfusion_flutter_datagrid/datagrid.dart';
+import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xlsio;
+import 'package:pdf/widgets.dart' as pw;
+import 'package:open_file/open_file.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -376,6 +381,12 @@ class _HomePageState extends State<HomePage> {
                       ),
                       onPressed: () {
                         String presentUser = resource.PresentWorkingUser;
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ParticipantListView(),
+                          ),
+                        );
                         if (presentUser == 'default') {
                           obj_popup.showPopup(context, "Please Login", "");
                         } else if (presentUser == 'student' ||
@@ -424,6 +435,10 @@ class _HomePageState extends State<HomePage> {
                       ), // Icon color should be white for better visibility
                       onPressed: () {
                         String presentUser = resource.PresentWorkingUser;
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => AwardsPage()),
+                        );
                         if (presentUser == 'default') {
                           obj_popup.showPopup(context, "Please Login", "");
                         } else if (presentUser == 'student' ||
@@ -468,6 +483,13 @@ class _HomePageState extends State<HomePage> {
                         color: Colors.white,
                       ), // Icon color should be white for better visibility
                       onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                SchoolsHomePage(username: 'nothing'),
+                          ),
+                        );
                         String presentUser = resource.PresentWorkingUser;
                         if (presentUser == 'default') {
                           obj_popup.showPopup(context, "Please Login", "");
@@ -477,7 +499,8 @@ class _HomePageState extends State<HomePage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => LoginPage(),
+                              builder: (context) =>
+                                  SchoolsHomePage(username: "hello"),
                             ),
                           );
                         }
@@ -505,6 +528,12 @@ class _HomePageState extends State<HomePage> {
                         width: 130,
                         onPressed: () {
                           // Add the desired functionality here
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const StudentInterface(),
+                            ),
+                          );
                           String presentUser = resource.PresentWorkingUser;
                           if (presentUser == 'default') {
                             obj_popup.showPopup(context, "Please Login", "");
@@ -541,6 +570,12 @@ class _HomePageState extends State<HomePage> {
                         width: 130,
                         onPressed: () {
                           // Add the desired functionality here
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => Extramurals(),
+                            ),
+                          );
                           String presentUser = resource.PresentWorkingUser;
                           if (presentUser == 'default') {
                             obj_popup.showPopup(context, "Please Login", "");
@@ -579,6 +614,13 @@ class _HomePageState extends State<HomePage> {
                         width: 285,
                         onPressed: () {
                           // Add the desired functionality here
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const SelectionCommitteeInterface(),
+                            ),
+                          );
                           String presentUser = resource.PresentWorkingUser;
                           setState(() {});
                           if (presentUser == 'default') {
@@ -2790,13 +2832,24 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final Map<String, Map<String, Map<String, dynamic>>> activities = {};
   int _currentIndex = 0;
+  int _selectedIndex = 0;
+
   late String presentUser;
   bool _showForm = false;
   String _selectedGender = 'Male';
+  final List<String> participants = List.generate(
+    100,
+    (index) => "Participant ${index + 1}",
+  );
 
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _dobController = TextEditingController();
   File? _selectedImage;
+
+  List<Map<String, String>> allData = [];
+  List<Map<String, String>> filteredData = [];
+  DateTime selectedDate = DateTime.now();
+  bool showByMonth = false;
 
   Future<void> _pickImage() async {
     final pickedFile = await ImagePicker().pickImage(
@@ -2827,9 +2880,8 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
         for (var item in data) {
           String school = item['school'];
           String rawDate = item['date']; // e.g. "6/8/2025"
-          String date = rawDate; // default fallback
+          String date = rawDate;
 
-          // Format the date as dd-MM-yyyy
           try {
             List<String> parts = rawDate.split('/');
             if (parts.length == 3) {
@@ -2843,35 +2895,39 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
             print("Date parse error: $e");
           }
 
-          String time = item['time']; // e.g. "04:00 PM"
+          String time = item['time'];
           String ptName = item['pt_name'];
           String activityType = item['activity_type'];
           String gameName = item['game_name'];
 
-          // Extract image URLs as dummy XFile placeholders
           List<dynamic> images = item['images'];
           List<XFile> imageFiles = images.map<XFile>((img) {
-            return XFile(img['image_url']); // S3 URL
+            return XFile(img['image_url']);
           }).toList();
 
-          setState(() {
-            activities.putIfAbsent(school, () => {});
-            String finalKey = date;
-            int count = 1;
-            while (activities[school]!.containsKey(finalKey)) {
-              count++;
-              finalKey = '${date}_$count';
-            }
+          // Don't call setState for each item — it will slow things down
+          activities.putIfAbsent(school, () => {});
+          String finalKey = date;
+          int count = 1;
+          while (activities[school]!.containsKey(finalKey)) {
+            count++;
+            finalKey = '${date}_$count';
+          }
 
-            activities[school]![finalKey] = {
-              'ptName': ptName,
-              'activityType': activityType,
-              'gameName': gameName,
-              'time': time,
-              'images': imageFiles,
-            };
-          });
+          activities[school]![finalKey] = {
+            'ptName': ptName,
+            'activityType': activityType,
+            'gameName': gameName,
+            'time': time,
+            'images': imageFiles,
+          };
         }
+
+        // ✅ Now call setState ONCE, AFTER loop is complete
+        setState(() {
+          _flattenData(); // now data exists
+          _filterData();
+        });
       } else {
         print("Error fetching activities: ${response.statusCode}");
       }
@@ -2889,10 +2945,11 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
   @override
   void initState() {
     super.initState();
-    presentUser = widget.username;
-    requestNotificationPermission(); // ✅ Access it like this
 
     fetchActivitiesFromBackend();
+    print(activities);
+    presentUser = widget.username;
+    requestNotificationPermission(); // ✅ Access it like this
   }
 
   Future<String?> fetchUserProfileImageUrl(String username) async {
@@ -2915,73 +2972,86 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    Widget currentBody;
+    if (_currentIndex == 0) {
+      currentBody = _buildMainSection(context);
+    } else if (_currentIndex == 1) {
+      currentBody = _buildDataSection();
+    } else {
+      currentBody = _buildReportSection();
+    }
+
     return Scaffold(
       key: _scaffoldKey,
       drawer: Consumer<resource>(
         builder: (context, resource, child) {
           presentUser = widget.username;
-          return Drawer(
-            child: Column(
-              children: [
-                UserAccountsDrawerHeader(
-                  accountName: Text(widget.username),
-                  accountEmail: Text(presentUser),
+          return Container(
+            width: MediaQuery.of(context).size.width * 0.69,
+            child: Drawer(
+              child: Column(
+                children: [
+                  UserAccountsDrawerHeader(
+                    accountName: Text(widget.username),
+                    accountEmail: Text("Administrator "),
 
-                  currentAccountPicture: FutureBuilder<String?>(
-                    future: fetchUserProfileImageUrl(presentUser),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const CircleAvatar(
-                          child: CircularProgressIndicator(),
-                        );
-                      } else if (snapshot.hasData && snapshot.data != null) {
-                        return CircleAvatar(
-                          backgroundImage: NetworkImage(snapshot.data!),
-                        );
-                      } else {
-                        return const CircleAvatar(
-                          backgroundImage: AssetImage(
-                            'assets/imgicon1.png',
-                          ), // fallback
-                        );
-                      }
+                    currentAccountPicture: FutureBuilder<String?>(
+                      future: fetchUserProfileImageUrl(presentUser),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const CircleAvatar(
+                            child: CircularProgressIndicator(),
+                          );
+                        } else if (snapshot.hasData && snapshot.data != null) {
+                          return CircleAvatar(
+                            backgroundImage: NetworkImage(snapshot.data!),
+                          );
+                        } else {
+                          return const CircleAvatar(
+                            backgroundImage: AssetImage(
+                              'assets/imgicon1.png',
+                            ), // fallback
+                          );
+                        }
+                      },
+                    ),
+                    decoration: BoxDecoration(color: Colors.orangeAccent),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.person),
+                    title: const Text("Profile"),
+                    onTap: () {
+                      print("Profile tapped");
+                      Navigator.pop(context); // Close the drawer
                     },
                   ),
-                  decoration: BoxDecoration(color: Colors.orangeAccent),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.person),
-                  title: const Text("Profile....."),
-                  onTap: () {
-                    print("Profile tapped");
-                    Navigator.pop(context); // Close the drawer
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.help),
-                  title: const Text("Help"),
-                  onTap: () {
-                    print("Help tapped");
-                    Navigator.pop(context); // Close the drawer
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.contact_emergency),
-                  title: const Text("Raise Query"),
-                  onTap: () {
-                    print("Info tapped");
-                    Navigator.pop(context); // Close the drawer
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.settings),
-                  title: const Text("Settings"),
-                  onTap: () {
-                    print("Settings tapped");
-                    Navigator.pop(context); // Close the drawer
-                  },
-                ),
-              ],
+                  ListTile(
+                    leading: const Icon(Icons.help),
+                    title: const Text("Help"),
+                    onTap: () {
+                      print("Help tapped");
+                      Navigator.pop(context); // Close the drawer
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.contact_emergency),
+                    title: const Text("Raise Query"),
+                    onTap: () {
+                      print("Info tapped");
+                      Navigator.pop(context); // Close the drawer
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.settings),
+                    title: const Text("Settings"),
+                    onTap: () {
+                      print("Settings tapped");
+                      Navigator.pop(context); // Close the drawer
+                    },
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -3051,9 +3121,8 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
           ),
         ],
       ),
-      body: _currentIndex == 0
-          ? _buildMainSection(context)
-          : _buildReportSection(),
+
+      body: currentBody,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
@@ -3064,10 +3133,11 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
             icon: Icon(Icons.content_paste),
             label: 'Activities',
           ),
+          BottomNavigationBarItem(icon: Icon(Icons.groups), label: 'Data View'),
 
           BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart),
-            label: 'Reports',
+            icon: Icon(Icons.groups),
+            label: 'Participants',
           ),
         ],
       ),
@@ -3155,6 +3225,18 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
     );
   }
 
+  void _showStudentIdCard(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: StudentIdCardWidget(), // shown below
+        );
+      },
+    );
+  }
+
   Widget _buildReportSection() {
     return Scaffold(
       backgroundColor: Colors.grey.shade200,
@@ -3171,6 +3253,48 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
           : null, // Hide FAB when form is open
       body: Stack(
         children: [
+          if (!_showForm)
+            Column(
+              children: [
+                // Search Bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search Participants...',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+                // Participant List
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 16,
+                    ),
+                    itemCount: participants.length,
+                    itemBuilder: (context, index) {
+                      return _buildParticipantCard(
+                        participantName: participants[index],
+                        schoolName: "School ${Random().nextInt(20) + 1}",
+                        studentCount: Random().nextInt(500) + 50,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+
           if (_showForm)
             Center(
               child: SingleChildScrollView(
@@ -3240,7 +3364,7 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
                           ),
                           SizedBox(height: 8),
                           _buildField('Address'),
-                          SizedBox(height: 8),
+                          SizedBox(height: 2),
                           Row(
                             children: [
                               Expanded(child: _buildField('Zip Code')),
@@ -3248,9 +3372,9 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
                               Expanded(child: _buildField('Sign Here')),
                             ],
                           ),
-                          SizedBox(height: 8),
+                          SizedBox(height: 2),
                           _buildField('Describe Yourself', maxLines: 3),
-                          SizedBox(height: 20),
+                          SizedBox(height: 5),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -3307,6 +3431,261 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
     );
   }
 
+  void _flattenData() {
+    print(activities);
+    allData.clear();
+    activities.forEach((school, dateMap) {
+      dateMap.forEach((dateKey, details) {
+        allData.add({
+          'School': school,
+          'Date': dateKey,
+          'PT Name': details['ptName'] ?? '',
+          'Activity': details['activityType'] ?? '',
+          'Game': details['gameName'] ?? '',
+          'Time': details['time'] ?? '',
+        });
+      });
+    });
+  }
+
+  void _filterData() {
+    final selectedFormat = DateFormat('dd-MM-yyyy');
+    final selectedMonth = selectedDate.month;
+    final selectedYear = selectedDate.year;
+
+    setState(() {
+      if (showByMonth) {
+        filteredData = allData.where((item) {
+          try {
+            final date = selectedFormat.parse(item['Date']!);
+            return date.month == selectedMonth && date.year == selectedYear;
+          } catch (_) {
+            return false;
+          }
+        }).toList();
+      } else {
+        final selectedDay = selectedDate.day;
+        filteredData = allData.where((item) {
+          try {
+            final date = selectedFormat.parse(item['Date']!);
+            return date.day == selectedDay &&
+                date.month == selectedMonth &&
+                date.year == selectedYear;
+          } catch (_) {
+            return false;
+          }
+        }).toList();
+      }
+    });
+  }
+
+  Future<void> _exportToExcel() async {
+    final workbook = xlsio.Workbook();
+    final sheet = workbook.worksheets[0];
+
+    final headers = ['School', 'Date', 'PT Name', 'Activity', 'Game', 'Time'];
+    for (int i = 0; i < headers.length; i++) {
+      sheet.getRangeByIndex(1, i + 1).setText(headers[i]);
+    }
+
+    for (int i = 0; i < filteredData.length; i++) {
+      final row = filteredData[i];
+      for (int j = 0; j < headers.length; j++) {
+        sheet.getRangeByIndex(i + 2, j + 1).setText(row[headers[j]]);
+      }
+    }
+
+    final bytes = workbook.saveAsStream();
+    workbook.dispose();
+
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/Activity_Summary.xlsx');
+    await file.writeAsBytes(bytes, flush: true);
+
+    OpenFile.open(file.path);
+  }
+
+  Future<void> _exportToPDF() async {
+    final pdf = pw.Document();
+
+    final headers = ['School', 'Date', 'PT Name', 'Activity', 'Game', 'Time'];
+    final data = filteredData
+        .map((row) => headers.map((h) => row[h]!).toList())
+        .toList();
+
+    pdf.addPage(
+      pw.Page(
+        build: (pw.Context context) =>
+            pw.Table.fromTextArray(headers: headers, data: data),
+      ),
+    );
+
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/Activity_Summary.pdf');
+    await file.writeAsBytes(await pdf.save());
+
+    OpenFile.open(file.path);
+  }
+
+  Widget _buildDataSection() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Activity Summary Viewer"),
+        backgroundColor: Colors.deepOrange,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: _exportToPDF,
+            tooltip: 'Export to PDF',
+          ),
+          IconButton(
+            icon: const Icon(Icons.table_view),
+            onPressed: _exportToExcel,
+            tooltip: 'Export to Excel',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          ListTile(
+            title: Text(
+              showByMonth
+                  ? 'Month: ${DateFormat('MMMM yyyy').format(selectedDate)}'
+                  : 'Date: ${DateFormat('dd-MM-yyyy').format(selectedDate)}',
+            ),
+            trailing: Switch(
+              value: showByMonth,
+              onChanged: (val) {
+                setState(() => showByMonth = val);
+                _filterData();
+              },
+            ),
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: selectedDate,
+                firstDate: DateTime(2024),
+                lastDate: DateTime(2026),
+              );
+              if (picked != null) {
+                setState(() => selectedDate = picked);
+                _filterData();
+              }
+            },
+          ),
+          const Divider(),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: [
+                  'School',
+                  'Date',
+                  'PT Name',
+                  'Activity',
+                  'Game',
+                  'Time',
+                ].map((h) => DataColumn(label: Text(h))).toList(),
+                rows: filteredData
+                    .map(
+                      (row) => DataRow(
+                        cells: [
+                          row['School'],
+                          row['Date'],
+                          row['PT Name'],
+                          row['Activity'],
+                          row['Game'],
+                          row['Time'],
+                        ].map((val) => DataCell(Text(val ?? '-'))).toList(),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildParticipantCard({
+    required String participantName,
+    required String schoolName,
+    required int studentCount,
+  }) {
+    return GestureDetector(
+      onTap: () => _showStudentIdCard(context),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.blue.shade100, Colors.blue.shade50],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: const Color.fromARGB(255, 255, 0, 0).withOpacity(0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: Colors.orange.withOpacity(0.2),
+                child: const Icon(
+                  Icons.switch_account,
+                  size: 32,
+                  color: Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      participantName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "School: $schoolName",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Student ID: $studentCount",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildField(String label, {int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
@@ -3349,6 +3728,172 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
         },
         validator: (value) =>
             value == null || value.isEmpty ? 'Select $label' : null,
+      ),
+    );
+  }
+}
+
+class StudentIdCardWidget extends StatefulWidget {
+  @override
+  _StudentIdCardWidgetState createState() => _StudentIdCardWidgetState();
+}
+
+class _StudentIdCardWidgetState extends State<StudentIdCardWidget> {
+  bool _showAwards = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.deepPurple, width: 2),
+        ),
+        elevation: 16,
+        child: Container(
+          width: 280,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.deepPurple, Colors.purpleAccent],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                padding: EdgeInsets.symmetric(vertical: 40, horizontal: 28),
+                child: Column(
+                  children: [
+                    Icon(Icons.school, color: Colors.white, size: 36),
+                    SizedBox(height: 6),
+                    Text(
+                      "Chandra Sekhar",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    Text(
+                      "Kabaddi Player",
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Profile Image
+              Container(
+                transform: Matrix4.translationValues(0.0, -40.0, 0.0),
+                child: CircleAvatar(
+                  radius: 40,
+                  backgroundColor: Colors.white,
+                  backgroundImage: AssetImage('assets/cr73.jpg'),
+                ),
+              ),
+
+              // Info Section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Column(
+                  children: _showAwards
+                      ? [
+                          _infoRow('Total Games ', '34'),
+                          _infoRow('Wins ', '20'),
+                          _infoRow('Losses ', '14'),
+                          _infoRow(
+                            'Awards ',
+                            'Top scorrer  in 2023,Best Player Award 2025',
+                          ),
+                          _infoRow('Prizes ', '3'),
+                          _infoRow('Rating ', '4.5 ⭐'),
+                        ]
+                      : [
+                          _infoRow('Student ID ', '1234'),
+                          _infoRow('School ', 'Heal'),
+                          _infoRow('Father ', 'Mr. Doe'),
+                          _infoRow('Class ', '10-A'),
+                          _infoRow('Address ', 'Guntur, AP'),
+                        ],
+                ),
+              ),
+
+              SizedBox(height: 20),
+
+              // Buttons
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: Icon(Icons.close, color: Colors.white),
+                        label: Text(
+                          'Close',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _showAwards = !_showAwards;
+                          });
+                        },
+                        icon: Icon(Icons.emoji_events, color: Colors.white),
+                        label: Text(
+                          _showAwards ? 'Back' : 'Awards',
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueAccent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(String title, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3.0),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 4,
+            child: Text(
+              "$title:",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(flex: 6, child: Text(value, style: TextStyle(fontSize: 16))),
+        ],
       ),
     );
   }
@@ -3714,6 +4259,8 @@ class ActivityDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final List images = data['images'] ?? [];
+
     return Scaffold(
       appBar: AppBar(title: Text('Activity on $date')),
       body: SingleChildScrollView(
@@ -3741,32 +4288,36 @@ class ActivityDetailsPage extends StatelessWidget {
                   "Game Name: ${data['gameName']}",
                   style: TextStyle(fontSize: 16),
                 ),
-                Text("Time : ${data['time']}", style: TextStyle(fontSize: 16)),
+                Text("Time: ${data['time']}", style: TextStyle(fontSize: 16)),
                 SizedBox(height: 20),
                 Text(
                   "Activity Media:",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: 12),
-                Row(
-                  children: (data['images'] as List)
-                      .map(
-                        (file) => Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              file.path,
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Icon(Icons.broken_image),
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList(),
+
+                /// ✅ Use GridView for 3 images per row
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  itemCount: images.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2, // 3 images per row
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemBuilder: (context, index) {
+                    final file = images[index];
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        file.path,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            Icon(Icons.broken_image),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -3874,9 +4425,6 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
           if (tokenResponse.statusCode == 200) {
             final data = jsonDecode(tokenResponse.body);
             final List<dynamic> tokens = data['tokens'];
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$tokens'), backgroundColor: Colors.green),
-            );
 
             await http.post(
               Uri.parse("http://65.1.134.172:8000/sendnotificationtoall/"),

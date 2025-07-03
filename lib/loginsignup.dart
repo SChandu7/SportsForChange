@@ -273,7 +273,7 @@ class _LoginPageState extends State<LoginPage> {
                                         child: TextFormField(
                                           controller: _GetUsername,
                                           decoration: const InputDecoration(
-                                            hintText: "Email or Phone number",
+                                            hintText: "Username eg..test",
                                             hintStyle: TextStyle(
                                               color: Colors.grey,
                                             ),
@@ -305,7 +305,7 @@ class _LoginPageState extends State<LoginPage> {
                                           controller: _GetUserPassword,
                                           obscureText: eye,
                                           decoration: InputDecoration(
-                                            hintText: "Password",
+                                            hintText: "Password eg..test123",
                                             hintStyle: const TextStyle(
                                               color: Colors.grey,
                                             ),
@@ -490,7 +490,7 @@ class _LoginPageState extends State<LoginPage> {
                                           context: context,
                                           dialogType: DialogType.success,
                                           animType: AnimType.bottomSlide,
-                                          title: 'Welcome $username  $fcmToken',
+                                          title: 'Welcome $username ',
                                           desc:
                                               'You have successfully logged in .',
                                           body: Column(
@@ -510,7 +510,7 @@ class _LoginPageState extends State<LoginPage> {
                                                 ),
                                               const SizedBox(height: 10),
                                               Text(
-                                                'Welcome $username! $fcmToken',
+                                                'Welcome $username! ',
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                 ),

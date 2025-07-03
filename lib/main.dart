@@ -1119,7 +1119,7 @@ class ClassesScreen extends StatelessWidget {
                 },
               ),
             );
-          } //for particluar secelction
+          } //for particluar seceltion
 
           // Default case for other classes
           return Card(
@@ -2828,7 +2828,20 @@ class SchoolsHomePage extends StatefulWidget {
 }
 
 class _SchoolsHomePageState extends State<SchoolsHomePage> {
-  final List<String> schools = [for (int i = 1; i <= 11; i++) 'School $i'];
+  final List<String> schools = [
+    'Heal School',
+    'Srmc Krishna',
+    'Share & Care',
+    'Gannavaram',
+    'GannavaramG',
+    'Kesarapalli',
+    'Davajigudem',
+    'Golnapalli',
+    'MK Baig MC',
+    'KBC ZP Boys',
+    'CVR HighSchool',
+  ];
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final Map<String, Map<String, Map<String, dynamic>>> activities = {};
   int _currentIndex = 0;
@@ -2850,6 +2863,7 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
   List<Map<String, String>> filteredData = [];
   DateTime selectedDate = DateTime.now();
   bool showByMonth = false;
+  Set<String> activityDates = {};
 
   Future<void> _pickImage() async {
     final pickedFile = await ImagePicker().pickImage(
@@ -3236,11 +3250,38 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
       },
     );
   }
+  // ...existing code...
 
   Widget _buildReportSection() {
+    TextEditingController _searchController = TextEditingController();
+    String _selectedSchool = schools[0]; // Default to first school in the list
+
+    // Use setState to update the selected school
+    void _onSchoolChanged(String? value) {
+      setState(() {
+        _selectedSchool = value!;
+      });
+    }
+
+    // Filter participants by selected school
+    List<Map<String, dynamic>> filteredParticipants = participants
+        .map(
+          (p) => {
+            'name': p,
+            'school': _selectedSchool,
+            'id': '${Random().nextInt(999) + 100}', // Sample ID
+          },
+        )
+        .where((participant) {
+          final query = _searchController.text.trim();
+          final matchesID = participant['id']?.contains(query);
+          final matchesSchool = participant['school'] == _selectedSchool;
+          return matchesID! && matchesSchool;
+        })
+        .toList();
+
     return Scaffold(
       backgroundColor: Colors.grey.shade200,
-
       floatingActionButton: !_showForm
           ? FloatingActionButton(
               onPressed: () {
@@ -3250,21 +3291,23 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
               },
               child: const Icon(Icons.app_registration, size: 36),
             )
-          : null, // Hide FAB when form is open
+          : null,
       body: Stack(
         children: [
           if (!_showForm)
             Column(
               children: [
-                // Search Bar
+                // 🔍 Search Field
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 10,
                   ),
                   child: TextField(
+                    controller: _searchController,
+                    onChanged: (val) => setState(() {}),
                     decoration: InputDecoration(
-                      hintText: 'Search Participants...',
+                      hintText: 'Search by Student ID...',
                       prefixIcon: const Icon(Icons.search),
                       filled: true,
                       fillColor: Colors.white,
@@ -3275,19 +3318,52 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
                     ),
                   ),
                 ),
-                // Participant List
+                const SizedBox(height: 10),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          value: _selectedSchool,
+                          onChanged: _onSchoolChanged,
+                          decoration: InputDecoration(
+                            labelText: 'Select School',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          items: schools.map((school) {
+                            return DropdownMenuItem(
+                              value: school,
+                              child: Text(school),
+                            );
+                          }).toList(),
+                          menuMaxHeight: 250,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                // 🧍 Participant List
                 Expanded(
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(
                       vertical: 10,
                       horizontal: 16,
                     ),
-                    itemCount: participants.length,
+                    itemCount: filteredParticipants.length,
                     itemBuilder: (context, index) {
+                      final participant = filteredParticipants[index];
                       return _buildParticipantCard(
-                        participantName: participants[index],
-                        schoolName: "School ${Random().nextInt(20) + 1}",
-                        studentCount: Random().nextInt(500) + 50,
+                        participantName: participant['name'],
+                        schoolName: participant['school'],
+                        studentCount: int.parse(participant['id']),
                       );
                     },
                   ),
@@ -3430,9 +3506,12 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
       ),
     );
   }
+  // ...existing code...
 
   void _flattenData() {
     print(activities);
+    // add inside the loop for each activity
+
     allData.clear();
     activities.forEach((school, dateMap) {
       dateMap.forEach((dateKey, details) {
@@ -3444,6 +3523,7 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
           'Game': details['gameName'] ?? '',
           'Time': details['time'] ?? '',
         });
+        activityDates.add(dateKey);
       });
     });
   }
@@ -3528,82 +3608,240 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
   }
 
   Widget _buildDataSection() {
+    String _viewMode = showByMonth ? 'Months' : 'Days';
+    final List<String> _viewOptions = ['Days', 'Months'];
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Activity Summary Viewer"),
-        backgroundColor: Colors.deepOrange,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf),
-            onPressed: _exportToPDF,
-            tooltip: 'Export to PDF',
-          ),
-          IconButton(
-            icon: const Icon(Icons.table_view),
-            onPressed: _exportToExcel,
-            tooltip: 'Export to Excel',
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          ListTile(
-            title: Text(
+      backgroundColor: Colors.grey.shade200,
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 🔽 View Mode Selector (Dropdown)
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Select View Mode',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    value: _viewMode,
+                    onChanged: (value) async {
+                      if (value == 'Days') {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2024),
+                          lastDate: DateTime(2026),
+                          helpText: 'Select a date',
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: ColorScheme.light(
+                                  primary: Colors.deepOrange,
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            selectedDate = picked;
+                            showByMonth = false;
+                          });
+                          _filterData();
+                        }
+                      } else {
+                        // Custom month picker using a simple dialog
+                        final pickedMonth = await showDialog<DateTime>(
+                          context: context,
+                          builder: (BuildContext context) {
+                            DateTime tempSelected = selectedDate;
+                            return AlertDialog(
+                              title: const Text('Select Month'),
+                              content: SizedBox(
+                                width: double.maxFinite,
+                                child: GridView.builder(
+                                  shrinkWrap: true,
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 3,
+                                        childAspectRatio: 2.5,
+                                        crossAxisSpacing: 8,
+                                        mainAxisSpacing: 8,
+                                      ),
+                                  itemCount: 12,
+                                  itemBuilder: (context, index) {
+                                    final month = DateTime(2025, index + 1);
+                                    return ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            Colors.deepOrangeAccent,
+                                      ),
+                                      onPressed: () {
+                                        Navigator.of(context).pop(
+                                          DateTime(
+                                            selectedDate.year,
+                                            index + 1,
+                                          ),
+                                        );
+                                      },
+                                      child: Text(
+                                        DateFormat.MMM().format(month),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                        if (pickedMonth != null) {
+                          setState(() {
+                            selectedDate = pickedMonth;
+                            showByMonth = true;
+                          });
+                          _filterData();
+                        }
+                      }
+                    },
+                    items: _viewOptions
+                        .map(
+                          (option) => DropdownMenuItem(
+                            value: option,
+                            child: Text(option),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // 📅 Show selected date/month info below dropdown
+            Text(
               showByMonth
                   ? 'Month: ${DateFormat('MMMM yyyy').format(selectedDate)}'
                   : 'Date: ${DateFormat('dd-MM-yyyy').format(selectedDate)}',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
-            trailing: Switch(
-              value: showByMonth,
-              onChanged: (val) {
-                setState(() => showByMonth = val);
-                _filterData();
-              },
-            ),
-            onTap: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: selectedDate,
-                firstDate: DateTime(2024),
-                lastDate: DateTime(2026),
-              );
-              if (picked != null) {
-                setState(() => selectedDate = picked);
-                _filterData();
-              }
-            },
-          ),
-          const Divider(),
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: [
-                  'School',
-                  'Date',
-                  'PT Name',
-                  'Activity',
-                  'Game',
-                  'Time',
-                ].map((h) => DataColumn(label: Text(h))).toList(),
-                rows: filteredData
-                    .map(
-                      (row) => DataRow(
-                        cells: [
-                          row['School'],
-                          row['Date'],
-                          row['PT Name'],
-                          row['Activity'],
-                          row['Game'],
-                          row['Time'],
-                        ].map((val) => DataCell(Text(val ?? '-'))).toList(),
-                      ),
-                    )
-                    .toList(),
+
+            const SizedBox(height: 8),
+            const Divider(),
+
+            // 📋 Scrollable Data Table (horizontal + vertical)
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columns: [
+                      'School',
+                      'Date',
+                      'PT Name',
+                      'Activity',
+                      'Game',
+                      'Time',
+                    ].map((h) => DataColumn(label: Text(h))).toList(),
+                    rows: filteredData
+                        .map(
+                          (row) => DataRow(
+                            cells: [
+                              row['School'],
+                              row['Date'],
+                              row['PT Name'],
+                              row['Activity'],
+                              row['Game'],
+                              row['Time'],
+                            ].map((val) => DataCell(Text(val ?? '-'))).toList(),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 12),
+
+            // ⬇️ Download Options Button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.download),
+                  label: const Text('Download'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepOrange,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(18),
+                        ),
+                      ),
+                      builder: (context) => Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 24,
+                          horizontal: 16,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(
+                              leading: const Icon(
+                                Icons.picture_as_pdf,
+                                color: Colors.red,
+                              ),
+                              title: const Text('Export to PDF'),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _exportToPDF();
+                              },
+                            ),
+                            ListTile(
+                              leading: const Icon(
+                                Icons.table_view,
+                                color: Colors.green,
+                              ),
+                              title: const Text('Export to Excel'),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _exportToExcel();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -3807,6 +4045,7 @@ class _StudentIdCardWidgetState extends State<StudentIdCardWidget> {
                           _infoRow('Total Games ', '34'),
                           _infoRow('Wins ', '20'),
                           _infoRow('Losses ', '14'),
+                          _infoRow('Goals ', '42'),
                           _infoRow(
                             'Awards ',
                             'Top scorrer  in 2023,Best Player Award 2025',

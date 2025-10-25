@@ -13,7 +13,7 @@ It simplifies how event organizers **store, manage, and retrieve** sports data w
 |------------|----------------|
 | **Frontend** | Flutter |
 | **Backend** | Django REST Framework |
-| **Database** | MySQL |
+| **Database** | PostgreSql |
 | **Cloud Hosting** | AWS |
 | **API Communication** | REST APIs |
 | **Data Export** | Excel (via backend) |
@@ -155,6 +155,7 @@ AWS Cloud Server (Deployment)
 
 ## 📄 License
 This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
+
 
 
 

@@ -7,12 +7,6 @@ It simplifies how event organizers **store, manage, and retrieve** sports data w
 
 ---
 
-<img width="1397" height="765" alt="image" src="https://github.com/user-attachments/assets/a4d4f6bc-463a-474f-ba85-8dd682e53b6b" />
-
-
-
-
-
 ## ⚙️ Tech Stack
 
 | Component | Technology Used |
@@ -78,8 +72,8 @@ AWS Cloud Server (Deployment)
 ### 🧱 Backend (Django)
 1. Clone the repository:
    ```bash
-   git clone https://github.com/<your-username>/sports-management-app.git
-   cd sports-management-app/backend
+   git clone https://github.com/SChandu7/djangobackend.git
+   cd djangobackend
    ```
 
 2. Create a virtual environment and install dependencies:
@@ -122,10 +116,10 @@ AWS Cloud Server (Deployment)
 ---
 
 ## ☁️ Deployment
-- **Backend** hosted on **AWS EC2 / AWS Lambda (optional)**.  
-- **Database** hosted on **AWS RDS (MySQL)**.  
+- **Backend** hosted on **AWS EC2 .  
+- **Database** hosted on **AWS RDS (PostgreSql)**.  
 - **Media files** (event images/results) stored on **AWS S3 Bucket**.  
-- **Frontend** deployed via **AWS Amplify or APK distribution**.
+- **Frontend** deployed via **APK distribution**.
 
 ---
 
@@ -146,19 +140,21 @@ AWS Cloud Server (Deployment)
 
 ---
 
-## 📸 Screenshots (Optional)
-_Add app screenshots or GIFs here once available._
+## 📸 Screenshots 
+
+<img width="1397" height="765" alt="image" src="https://github.com/user-attachments/assets/a4d4f6bc-463a-474f-ba85-8dd682e53b6b" />
 
 ---
 
 ## 👨‍💻 Contributors
 | Name | Role | Description |
 |------|------|-------------|
-| S. Chandu | Developer & Project Lead | Full-stack development, architecture design, and backend integration. |
+| S. Chandra sekhar | Developer & Project Lead | Full-stack development, architecture design, and backend integration. |
 
 ---
 
 ## 📄 License
 This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
+
 
 

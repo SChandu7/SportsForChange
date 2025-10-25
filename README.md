@@ -7,10 +7,8 @@ It simplifies how event organizers **store, manage, and retrieve** sports data w
 
 ---
 
-![WhatsApp Image 2025-09-29 at 16 00 36_f0cb3981](https://github.com/user-attachments/assets/ae88135a-9721-405c-8160-45aff9cf48e6)
-![WhatsApp Image 2025-09-29 at 16 00 52_b05ffd3c](https://github.com/user-attachments/assets/b15b80be-ab0d-481b-b548-11a61c1e886d)
-![WhatsApp Image 2025-09-29 at 16 01 02_83c27290](https://github.com/user-attachments/assets/c3418fc9-1c59-486f-9aa5-9d1356d78f6a)
-![WhatsApp Image 2025-09-29 at 16 01 23_bea0134a](https://github.com/user-attachments/assets/48e75543-9444-470f-9300-e212fe1a42da)
+<img width="1397" height="765" alt="image" src="https://github.com/user-attachments/assets/a4d4f6bc-463a-474f-ba85-8dd682e53b6b" />
+
 
 
 
@@ -162,4 +160,5 @@ _Add app screenshots or GIFs here once available._
 
 ## 📄 License
 This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
+
 

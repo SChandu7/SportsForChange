@@ -156,6 +156,16 @@ AWS Cloud Server (Deployment)
 ## 📄 License
 This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
 
+---
+
+
+## Contact
+
+If you have any questions or suggestions regarding the Coffee app, feel free to contact us at kingchandus143@gmail.com 
+
+---
+
+
 
 
 

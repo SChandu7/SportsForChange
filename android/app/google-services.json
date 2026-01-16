@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "169752099031",
+    "project_id": "sportsforchangeproject",
+    "storage_bucket": "sportsforchangeproject.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:169752099031:android:891a4f4ec0f01437195892",
+        "android_client_info": {
+          "package_name": "com.example.sportsdemo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWOU5DRVgRs0iw_GsBFWmntfYUyY-_FZc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:169752099031:android:94bdead6dafbf124195892",
+        "android_client_info": {
+          "package_name": "com.sportsdemo.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWOU5DRVgRs0iw_GsBFWmntfYUyY-_FZc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

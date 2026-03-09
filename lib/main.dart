@@ -9,32 +9,12 @@ import 'resource.dart';
 import 'loginsignup.dart';
 import 'schools.dart';
 
-// final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-//     FlutterLocalNotificationsPlugin();
 
 List<CameraDescription> cameras = [];
 
-// Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-//   await Firebase.initializeApp();
-// }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // ✅ Firebase FIRST
-  // await Firebase.initializeApp();
-
-  // ✅ Initialize notifications
-  // const AndroidInitializationSettings androidSettings =
-  //     AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  // const InitializationSettings initSettings = InitializationSettings(
-  //   android: androidSettings,
-  // );
-
-  // await flutterLocalNotificationsPlugin.initialize(initSettings);
-
-  // FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // ✅ Camera init SAFE
   try {

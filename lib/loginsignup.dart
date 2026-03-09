@@ -153,7 +153,6 @@ class _LoginPageState extends State<LoginPage> {
     super.initState();
 
     _requestAllPermissions();
-   
   }
 
   Future<String?> fetchUserProfileImageUrl(String username) async {
@@ -188,8 +187,6 @@ class _LoginPageState extends State<LoginPage> {
       Permission.storage,
     ].request();
   }
-
-  
 
   @override
   Widget build(BuildContext context) {
@@ -396,7 +393,7 @@ class _LoginPageState extends State<LoginPage> {
                                     try {
                                       final response = await http.post(
                                         Uri.parse(
-                                          'http://13.203.219.206:8000/assignmentslogin/',
+                                          'https://api.chandus7.in/assignmentslogin/',
                                         ),
                                         body: {
                                           'username': _GetUsername.text.trim(),
@@ -647,7 +644,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://13.203.219.206:8000/uploadfiletos3/'),
+      Uri.parse('https://api.chandus7.in/uploadfiletos3/'),
     );
 
     if (kIsWeb) {
@@ -888,7 +885,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             try {
                               final response = await http.post(
                                 Uri.parse(
-                                  'http://13.203.219.206:8000/assignmentssignup/',
+                                  'https://api.chandus7.in/assignmentssignup/',
                                 ),
                                 body: {
                                   'username': _usernameController.text.trim(),

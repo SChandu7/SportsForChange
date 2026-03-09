@@ -103,7 +103,7 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
   }
 
   void fetchActivitiesFromBackend() async {
-    final url = Uri.parse('http://13.203.219.206:8000/getsportsdailyactivity');
+    final url = Uri.parse('https://api.chandus7.in/getsportsdailyactivity');
     try {
       final response = await http.get(url);
 
@@ -1390,7 +1390,7 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
   }
 
   void fetchActivitiesFromBackend() async {
-    final url = Uri.parse('http://13.203.219.206:8000/getsportsdailyactivity');
+    final url = Uri.parse('https://api.chandus7.in/getsportsdailyactivity');
     try {
       final response = await http.get(url);
 
@@ -3236,7 +3236,7 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
       print("formattedDate: $formattedDate");
       print("formattedTime: $formattedTime");
 
-      var uri = Uri.parse("http://13.203.219.206:8000/postsportsdailyactivity");
+      var uri = Uri.parse("https://api.chandus7.in/postsportsdailyactivity");
       var request = http.MultipartRequest('POST', uri);
 
       // pick correct game_name: prefer selectedGame (dropdown) else fallback to gameName text field
@@ -3284,7 +3284,7 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
         // Notifications flow (unchanged)
         try {
           final tokenResponse = await http.get(
-            Uri.parse("http://13.203.219.206:8000/getsportsnotificationtoken/"),
+            Uri.parse("https://api.chandus7.in/getsportsnotificationtoken/"),
           );
 
           if (tokenResponse.statusCode == 200) {
@@ -3292,7 +3292,7 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
             final List<dynamic> tokens = data['tokens'] ?? [];
 
             await http.post(
-              Uri.parse("http://13.203.219.206:8000/sendnotificationtoall/"),
+              Uri.parse("https://api.chandus7.in/sendnotificationtoall/"),
               headers: {"Content-Type": "application/json"},
               body: jsonEncode({
                 "title": "New PT Activity!",
@@ -3767,43 +3767,96 @@ class _AdminDashboardState extends State<AdminDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: Drawer(
-        child: ListView(
-          children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.blue),
-              child: Text(
-                "Admin Menu",
-                style: TextStyle(color: Colors.white, fontSize: 20),
+      drawer: Consumer<resource>(
+        builder: (context, resource, child) {
+          return SizedBox(
+            width: MediaQuery.of(context).size.width * 0.69,
+            child: Drawer(
+              child: Column(
+                children: [
+                  UserAccountsDrawerHeader(
+                    accountName: Text(widget.username),
+                    accountEmail: Text(UserSession.getUsername().toString()),
+
+                    currentAccountPicture: FutureBuilder<String?>(
+                      future: Future.value(null),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const CircleAvatar(
+                            child: CircularProgressIndicator(),
+                          );
+                        } else if (snapshot.hasData && snapshot.data != null) {
+                          return CircleAvatar(
+                            backgroundImage: NetworkImage(snapshot.data!),
+                          );
+                        } else {
+                          return const CircleAvatar(
+                            backgroundImage: AssetImage(
+                              'assets/imgicon1.png',
+                            ), // fallback
+                          );
+                        }
+                      },
+                    ),
+                    decoration: BoxDecoration(color: Colors.orangeAccent),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.person),
+                    title: const Text("Profile"),
+                    onTap: () {
+                      print("Profile tapped");
+                      Navigator.pop(context);
+
+                      // Close the drawer
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.help),
+                    title: const Text("Help"),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SportsChatScreen(),
+                        ),
+                      );
+
+                      // Navigator.pop(context); // Close the drawer
+                    },
+                  ),
+
+                  ListTile(
+                    leading: const Icon(Icons.settings),
+                    title: const Text("Settings"),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => SettingsPage()),
+                      );
+
+                      // Close the drawer
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.info),
+                    title: const Text("About"),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => AboutAppPage()),
+                      );
+                      // Close cthe drawer
+                    },
+                  ),
+                ],
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.school),
-              title: const Text("Schools"),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text("PTs"),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(Icons.receipt_long),
-              title: const Text("Bills"),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(Icons.sports_soccer),
-              title: const Text("Sports Admin"),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(Icons.announcement),
-              title: const Text("Announcements"),
-              onTap: () {},
-            ),
-          ],
-        ),
+          );
+        },
       ),
       appBar: AppBar(
         title: const Text("Dashboard"),

@@ -1,15 +1,12 @@
-// ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api, deprecated_member_use, unnecessary_import
+﻿// ignore_for_file: use_build_context_synchronously, library_private_types_in_public_api, deprecated_member_use, unnecessary_import
 
 import 'dart:io';
-import 'dart:math';
 import 'gpscamera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:carousel_slider/carousel_slider.dart';
 import 'package:speech_to_text/speech_to_text.dart';
-import 'gpscamera.dart';
 import 'package:video_player/video_player.dart';
 import 'main.dart';
 import 'resource.dart';
@@ -17,15 +14,15 @@ import 'loginsignup.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/services.dart'; // required for SystemNavigator
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:table_calendar/table_calendar.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xlsio;
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 class UserSession {
   static const _keyUsername = "defaultuserrr";
@@ -49,6 +46,34 @@ class UserSession {
   }
 }
 
+const List<String> kSchools = [
+  'Heal School',
+  'Srmc Krishna',
+  'Share & Care',
+  'Gannavaram',
+  'GannavaramG',
+  'Kesarapalli',
+  'Davajigudem',
+  'Golnapalli',
+  'MK Baig MC',
+  'KBC ZP Boys',
+  'CVR HighSchool',
+];
+
+const Map<String, String> kPtToSchool = {
+  'pt1': 'Heal School',
+  'pt2': 'Srmc Krishna',
+  'pt3': 'Share & Care',
+  'pt4': 'Gannavaram',
+  'pt5': 'GannavaramG',
+  'pt6': 'Kesarapalli',
+  'pt7': 'Davajigudem',
+  'pt8': 'Golnapalli',
+  'pt9': 'MK Baig MC',
+  'pt10': 'KBC ZP Boys',
+  'pt11': 'CVR HighSchool',
+};
+
 class SchoolsHomePage extends StatefulWidget {
   final String username;
 
@@ -58,28 +83,19 @@ class SchoolsHomePage extends StatefulWidget {
 }
 
 class _SchoolsHomePageState extends State<SchoolsHomePage> {
-  final List<String> schools = [
-    'Heal School',
-    'Srmc Krishna',
-    'Share & Care',
-    'Gannavaram',
-    'GannavaramG',
-    'Kesarapalli',
-    'Davajigudem',
-    'Golnapalli',
-    'MK Baig MC',
-    'KBC ZP Boys',
-    'CVR HighSchool',
-  ];
+  final List<String> schools = kSchools;
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final Map<String, Map<String, Map<String, dynamic>>> activities = {};
   int _currentIndex = 0;
 
   String presentUser = '';
+  String userRole = 'Default';
 
   bool _showForm = false;
   String _selectedGender = 'Male';
+  final TextEditingController _reportSearchController = TextEditingController();
+  late String _reportSelectedSchool;
   final List<String> participants = List.generate(
     100,
     (index) => "Participant ${index + 1}",
@@ -93,7 +109,6 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
   DateTime selectedDate = DateTime.now();
   bool showByMonth = false;
   Set<String> activityDates = {};
-  String userRole = "Default";
 
   void addActivity(String school, String day, Map<String, dynamic> data) {
     setState(() {
@@ -103,6 +118,7 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
   }
 
   void fetchActivitiesFromBackend() async {
+    activities.clear();
     final url = Uri.parse('https://api.chandus7.in/getsportsdailyactivity');
     try {
       final response = await http.get(url);
@@ -112,7 +128,7 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
 
         for (var item in data) {
           String school = item['school'];
-          String rawDate = item['date']; // e.g. "6/8/2025"
+          String rawDate = item['date'];
           String date = rawDate;
 
           try {
@@ -121,24 +137,18 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
               int month = int.parse(parts[0]);
               int day = int.parse(parts[1]);
               int year = int.parse(parts[2]);
-              date =
-                  "${day.toString().padLeft(2, '0')}-${month.toString().padLeft(2, '0')}-$year";
+              date = "${day.toString().padLeft(2, '0')}-${month.toString().padLeft(2, '0')}-$year";
             }
-          } catch (e) {
-            print("Date parse error: $e");
-          }
+          } catch (_) {}
 
-          String time = item['time'];
-          String ptName = item['pt_name'];
-          String activityType = item['activity_type'];
-          String gameName = item['game_name'];
+          final String time = item['time'];
+          final String ptName = item['pt_name'];
+          final String activityType = item['activity_type'];
+          final String gameName = item['game_name'];
 
-          List<dynamic> images = item['images'];
-          List<XFile> imageFiles = images.map<XFile>((img) {
-            return XFile(img['image_url']);
-          }).toList();
+          final List<dynamic> images = item['images'];
+          final List<XFile> imageFiles = images.map<XFile>((img) => XFile(img['image_url'])).toList();
 
-          // Don't call setState for each item — it will slow things down
           activities.putIfAbsent(school, () => {});
           String finalKey = date;
           int count = 1;
@@ -156,16 +166,14 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
           };
         }
 
-        // ✅ Now call setState ONCE, AFTER loop is complete
-        setState(() {
-          _flattenData(); // now data exists
-          _filterData();
-        });
+        _flattenData();
+        _filterDataInternal();
+        setState(() {});
       } else {
-        print("Error fetching activities: ${response.statusCode}");
+        debugPrint("Error fetching activities: ${response.statusCode}");
       }
     } catch (e) {
-      print("Exception: $e");
+      debugPrint("Exception fetching activities: $e");
     }
   }
 
@@ -178,11 +186,29 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
   @override
   void initState() {
     super.initState();
-
-    fetchActivitiesFromBackend();
-    print(activities);
     presentUser = widget.username;
-    requestNotificationPermission(); // ✅ Access it like this
+    _reportSelectedSchool = schools[0];
+    _initUserRole();
+    fetchActivitiesFromBackend();
+    requestNotificationPermission();
+  }
+
+  @override
+  void dispose() {
+    _reportSearchController.dispose();
+    super.dispose();
+  }
+
+  void _initUserRole() {
+    if (kPtToSchool.containsKey(widget.username)) {
+      userRole = 'Pt Sir';
+    } else if (widget.username == 'admin' || widget.username == 'official') {
+      userRole = 'Administrator';
+    } else if (widget.username == 'test' || widget.username == 'tester') {
+      userRole = 'Testing';
+    } else {
+      userRole = 'Default';
+    }
   }
 
   Future<String?> fetchUserProfileImageUrl(String username) async {
@@ -213,26 +239,6 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
     } else {
       currentBody = _buildReportSection();
     }
-    (widget.username == 'pt1' ||
-            widget.username == 'pt2' ||
-            widget.username == 'pt3' ||
-            widget.username == 'pt4' ||
-            widget.username == 'pt5' ||
-            widget.username == 'pt6' ||
-            widget.username == 'pt7' ||
-            widget.username == 'pt8' ||
-            widget.username == 'pt9' ||
-            widget.username == 'pt10' ||
-            widget.username == 'pt11')
-        ? userRole = "Pt Sir"
-        : null;
-    (widget.username == 'admin' || widget.username == 'official')
-        ? userRole = "Administrator"
-        : null;
-    (widget.username == 'test' || widget.username == 'tester')
-        ? userRole = "Testing"
-        : null;
-
     return Scaffold(
       key: _scaffoldKey,
       drawer: Consumer<resource>(
@@ -274,8 +280,7 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
                     leading: const Icon(Icons.person),
                     title: const Text("Profile"),
                     onTap: () {
-                      print("Profile tapped");
-                      Navigator.pop(context); // Close the drawer
+                      Navigator.pop(context);
                     },
                   ),
                   ListTile(
@@ -300,9 +305,9 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => AdminDashboard(username: "pt1"),
+                          builder: (context) => SportsChatScreen(),
                         ),
-                      ); // Close cthe drawer
+                      );
                     },
                   ),
                   ListTile(
@@ -313,11 +318,24 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              ParticularPtPage(username: "Heal School"),
+                          builder: (context) => SettingsPage(),
                         ),
                       );
-                      // Close the drawer
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.logout),
+                    title: const Text("Logout"),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.clear();
+                      if (!context.mounted) return;
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => LoginPage()),
+                        (route) => false,
+                      );
                     },
                   ),
                 ],
@@ -357,30 +375,13 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
                   );
                 } else if (value == 2) {
                   final prefs = await SharedPreferences.getInstance();
-                  await prefs.remove('username');
-
-                  Provider.of<resource>(
+                  await prefs.clear();
+                  if (!context.mounted) return;
+                  Navigator.pushAndRemoveUntil(
                     context,
-                    listen: false,
-                  ).setLoginDetails('default');
-                  BufferPopup().showBufferPopup(
-                    context,
-                    'Logging Out..',
-                    resource().PresentWorkingUser,
-                    'Logged Out ',
+                    MaterialPageRoute(builder: (_) => LoginPage()),
+                    (route) => false,
                   );
-                } else if (value == 3) {
-                  // ScaffoldMessenger.of(
-                  //   context,
-                  // ).showSnackBar(const SnackBar(content: Text("Help tapped")));
-                } else if (value == 4) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text("Help tapped")));
-                  // Navigator.push(
-                  //   context,
-                  //   MaterialPageRoute(builder: (context) => LoginPage()),
-                  // );
                 }
               });
             },
@@ -442,56 +443,9 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
       children: List.generate(schools.length, (index) {
         String school = schools[index];
 
-        // Determine if the item should be clickable
-        bool isClickable = false;
-        switch (index) {
-          case 0:
-            isClickable =
-                widget.username == 'pt1' || widget.username == 'admin';
-            break;
-          case 1:
-            isClickable =
-                widget.username == 'pt2' || widget.username == 'admin';
-            break;
-          case 2:
-            isClickable =
-                widget.username == 'pt3' || widget.username == 'admin';
-            break;
-          case 3:
-            isClickable =
-                widget.username == 'pt4' || widget.username == 'admin';
-            break;
-          case 4:
-            isClickable =
-                widget.username == 'pt5' || widget.username == 'admin';
-            break;
-          case 5:
-            isClickable =
-                widget.username == 'pt6' || widget.username == 'admin';
-            break;
-          case 6:
-            isClickable =
-                widget.username == 'pt7' || widget.username == 'admin';
-            break;
-          case 7:
-            isClickable =
-                widget.username == 'pt8' || widget.username == 'admin';
-            break;
-          case 8:
-            isClickable =
-                widget.username == 'pt9' || widget.username == 'admin';
-            break;
-          case 9:
-            isClickable =
-                widget.username == 'pt10' || widget.username == 'admin';
-            break;
-          case 10:
-            isClickable =
-                widget.username == 'pt11' || widget.username == 'admin';
-            break;
-          default:
-            isClickable = false;
-        }
+        final bool isAdmin = widget.username == 'admin' || widget.username == 'official';
+        final String? assignedSchool = kPtToSchool[widget.username];
+        final bool isClickable = isAdmin || assignedSchool == school;
 
         return GestureDetector(
           onTap: isClickable
@@ -552,75 +506,32 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
     );
   }
 
-  void _showStudentIdCard(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          child: StudentIdCardWidget(), // shown below
-        );
-      },
-    );
-  }
-  // ...existing code...
-
   Widget _buildReportSection() {
-    TextEditingController searchController = TextEditingController();
-    String selectedSchool = schools[0]; // Default to first school in the list
-
-    // Use setState to update the selected school
-    void onSchoolChanged(String? value) {
-      setState(() {
-        selectedSchool = value!;
-      });
-    }
-
-    // Filter participants by selected school
-    List<Map<String, dynamic>> filteredParticipants = participants
-        .map(
-          (p) => {
-            'name': p,
-            'school': selectedSchool,
-            'id': '${Random().nextInt(999) + 100}', // Sample ID
-          },
-        )
-        .where((participant) {
-          final query = searchController.text.trim();
-          final matchesID = participant['id']?.contains(query);
-          final matchesSchool = participant['school'] == selectedSchool;
-          return matchesID! && matchesSchool;
+    final List<Map<String, String>> schoolActivities = allData
+        .where((item) => item['School'] == _reportSelectedSchool)
+        .where((item) {
+          final query = _reportSearchController.text.trim().toLowerCase();
+          if (query.isEmpty) return true;
+          return (item['PT Name'] ?? '').toLowerCase().contains(query) ||
+              (item['Game'] ?? '').toLowerCase().contains(query) ||
+              (item['Date'] ?? '').contains(query);
         })
         .toList();
 
     return Scaffold(
       backgroundColor: Colors.grey.shade200,
-      floatingActionButton: !_showForm
-          ? FloatingActionButton(
-              onPressed: () {
-                setState(() {
-                  _showForm = true;
-                });
-              },
-              child: const Icon(Icons.app_registration, size: 36),
-            )
-          : null,
       body: Stack(
         children: [
           if (!_showForm)
             Column(
               children: [
-                // 🔍 Search Field
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
                   child: TextField(
-                    controller: searchController,
+                    controller: _reportSearchController,
                     onChanged: (val) => setState(() {}),
                     decoration: InputDecoration(
-                      hintText: 'Search by Student ID...',
+                      hintText: 'Search by PT name, game, or date...',
                       prefixIcon: const Icon(Icons.search),
                       filled: true,
                       fillColor: Colors.white,
@@ -631,56 +542,56 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
 
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          value: selectedSchool,
-                          onChanged: onSchoolChanged,
-                          decoration: InputDecoration(
-                            labelText: 'Select School',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          items: schools.map((school) {
-                            return DropdownMenuItem(
-                              value: school,
-                              child: Text(school),
-                            );
-                          }).toList(),
-                          menuMaxHeight: 250,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                // 🧍 Participant List
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 10,
-                      horizontal: 16,
+                  child: DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    value: _reportSelectedSchool,
+                    onChanged: (value) => setState(() => _reportSelectedSchool = value!),
+                    decoration: InputDecoration(
+                      labelText: 'Select School',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                     ),
-                    itemCount: filteredParticipants.length,
-                    itemBuilder: (context, index) {
-                      final participant = filteredParticipants[index];
-                      return _buildParticipantCard(
-                        participantName: participant['name'],
-                        schoolName: participant['school'],
-                        studentCount: int.parse(participant['id']),
-                      );
-                    },
+                    items: schools.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                    menuMaxHeight: 250,
                   ),
                 ),
+
+                const SizedBox(height: 8),
+
+                if (schoolActivities.isEmpty)
+                  const Expanded(
+                    child: Center(
+                      child: Text(
+                        'No activities found for this school.',
+                        style: TextStyle(color: Colors.grey, fontSize: 16),
+                      ),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                      itemCount: schoolActivities.length,
+                      itemBuilder: (context, index) {
+                        final item = schoolActivities[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.orange.shade100,
+                              child: const Icon(Icons.sports, color: Colors.orange),
+                            ),
+                            title: Text(item['PT Name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text('${item['Game']} • ${item['Date']} • ${item['Time']}'),
+                            trailing: const Icon(Icons.chevron_right),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
               ],
             ),
 
@@ -822,15 +733,13 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
   // ...existing code...
 
   void _flattenData() {
-    print(activities);
-    // add inside the loop for each activity
-
     allData.clear();
     activities.forEach((school, dateMap) {
       dateMap.forEach((dateKey, details) {
+        final cleanDate = dateKey.contains('_') ? dateKey.split('_').first : dateKey;
         allData.add({
           'School': school,
-          'Date': dateKey,
+          'Date': cleanDate,
           'PT Name': details['ptName'] ?? '',
           'Activity': details['activityType'] ?? '',
           'Game': details['gameName'] ?? '',
@@ -841,50 +750,70 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
     });
   }
 
-  void _filterData() {
+  void _filterDataInternal() {
     final selectedFormat = DateFormat('dd-MM-yyyy');
     final selectedMonth = selectedDate.month;
     final selectedYear = selectedDate.year;
 
-    setState(() {
-      if (showByMonth) {
-        filteredData = allData.where((item) {
-          try {
-            final date = selectedFormat.parse(item['Date']!);
-            return date.month == selectedMonth && date.year == selectedYear;
-          } catch (_) {
-            return false;
-          }
-        }).toList();
-      } else {
-        final selectedDay = selectedDate.day;
-        filteredData = allData.where((item) {
-          try {
-            final date = selectedFormat.parse(item['Date']!);
-            return date.day == selectedDay &&
-                date.month == selectedMonth &&
-                date.year == selectedYear;
-          } catch (_) {
-            return false;
-          }
-        }).toList();
-      }
-    });
+    if (showByMonth) {
+      filteredData = allData.where((item) {
+        try {
+          final date = selectedFormat.parse(item['Date']!);
+          return date.month == selectedMonth && date.year == selectedYear;
+        } catch (_) {
+          return false;
+        }
+      }).toList();
+    } else {
+      final selectedDay = selectedDate.day;
+      filteredData = allData.where((item) {
+        try {
+          final date = selectedFormat.parse(item['Date']!);
+          return date.day == selectedDay &&
+              date.month == selectedMonth &&
+              date.year == selectedYear;
+        } catch (_) {
+          return false;
+        }
+      }).toList();
+    }
+  }
+
+  void _filterData() {
+    _filterDataInternal();
+    setState(() {});
   }
 
   Future<void> _exportToExcel() async {
     final workbook = xlsio.Workbook();
     final sheet = workbook.worksheets[0];
+    sheet.name = 'Activities';
 
     final headers = ['School', 'Date', 'PT Name', 'Activity', 'Game', 'Time'];
+    final colWidths = [20.0, 14.0, 14.0, 40.0, 16.0, 12.0];
+
+    // Header row styling
     for (int i = 0; i < headers.length; i++) {
-      sheet.getRangeByIndex(1, i + 1).setText(headers[i]);
+      final cell = sheet.getRangeByIndex(1, i + 1);
+      cell.setText(headers[i]);
+      cell.cellStyle.bold = true;
+      cell.cellStyle.backColor = '#1565C0';
+      cell.cellStyle.fontColor = '#FFFFFF';
+      cell.cellStyle.fontSize = 11;
+      cell.cellStyle.hAlign = xlsio.HAlignType.center;
+      cell.cellStyle.borders.all.lineStyle = xlsio.LineStyle.thin;
+      sheet.getRangeByIndex(1, i + 1).columnWidth = colWidths[i];
     }
 
+    // Data rows
     for (int i = 0; i < filteredData.length; i++) {
       final row = filteredData[i];
       for (int j = 0; j < headers.length; j++) {
-        sheet.getRangeByIndex(i + 2, j + 1).setText(row[headers[j]]);
+        final cell = sheet.getRangeByIndex(i + 2, j + 1);
+        cell.setText(row[headers[j]] ?? '');
+        cell.cellStyle.backColor = i.isEven ? '#E3F2FD' : '#FFFFFF';
+        cell.cellStyle.borders.all.lineStyle = xlsio.LineStyle.thin;
+        cell.cellStyle.fontSize = 10;
       }
     }
 
@@ -900,16 +829,90 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
 
   Future<void> _exportToPDF() async {
     final pdf = pw.Document();
-
     final headers = ['School', 'Date', 'PT Name', 'Activity', 'Game', 'Time'];
-    final data = filteredData
-        .map((row) => headers.map((h) => row[h]!).toList())
-        .toList();
+    final rows = filteredData.map((row) => headers.map((h) => row[h] ?? '—').toList()).toList();
 
     pdf.addPage(
-      pw.Page(
-        build: (pw.Context context) =>
-            pw.Table.fromTextArray(headers: headers, data: data),
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4.landscape,
+        margin: const pw.EdgeInsets.all(24),
+        header: (ctx) => pw.Container(
+          padding: const pw.EdgeInsets.only(bottom: 8),
+          decoration: const pw.BoxDecoration(
+            border: pw.Border(bottom: pw.BorderSide(color: PdfColors.blue800, width: 2)),
+          ),
+          child: pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'SportsForChange — Activity Report',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.blue800,
+                ),
+              ),
+              pw.Text(
+                DateFormat('dd MMM yyyy').format(DateTime.now()),
+                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+              ),
+            ],
+          ),
+        ),
+        build: (ctx) => [
+          pw.SizedBox(height: 12),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(2.0),
+              1: const pw.FlexColumnWidth(1.5),
+              2: const pw.FlexColumnWidth(1.5),
+              3: const pw.FlexColumnWidth(3.2),
+              4: const pw.FlexColumnWidth(1.5),
+              5: const pw.FlexColumnWidth(1.2),
+            },
+            children: [
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: PdfColors.blue800),
+                children: headers
+                    .map((h) => pw.Padding(
+                          padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                          child: pw.Text(
+                            h,
+                            style: pw.TextStyle(
+                              color: PdfColors.white,
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: 9,
+                            ),
+                          ),
+                        ))
+                    .toList(),
+              ),
+              ...rows.asMap().entries.map(
+                (entry) => pw.TableRow(
+                  decoration: pw.BoxDecoration(
+                    color: entry.key.isEven ? PdfColors.blue50 : PdfColors.white,
+                  ),
+                  children: entry.value
+                      .map((cell) => pw.Padding(
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                            child: pw.Text(cell, style: const pw.TextStyle(fontSize: 8)),
+                          ))
+                      .toList(),
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text(
+            'Total records: ${rows.length}',
+            style: pw.TextStyle(
+              fontSize: 9,
+              color: PdfColors.grey600,
+              fontStyle: pw.FontStyle.italic,
+            ),
+          ),
+        ],
       ),
     );
 
@@ -1158,84 +1161,6 @@ class _SchoolsHomePageState extends State<SchoolsHomePage> {
     );
   }
 
-  Widget _buildParticipantCard({
-    required String participantName,
-    required String schoolName,
-    required int studentCount,
-  }) {
-    return GestureDetector(
-      onTap: () => _showStudentIdCard(context),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blue.shade100, Colors.blue.shade50],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: const Color.fromARGB(255, 255, 0, 0).withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: Colors.orange.withOpacity(0.2),
-                child: const Icon(
-                  Icons.switch_account,
-                  size: 32,
-                  color: Colors.orange,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      participantName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "School: $schoolName",
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.black54,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Student ID: $studentCount",
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildField(String label, {int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
@@ -1331,30 +1256,7 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
   }
 
   Future<void> _initializeScreen() async {
-    // Assign school based on username
-    if (widget.username == 'pt1') {
-      school = 'Heal School';
-    } else if (widget.username == 'pt2') {
-      school = 'Srmc Krishna';
-    } else if (widget.username == 'pt3') {
-      school = 'Share & Care';
-    } else if (widget.username == 'pt4') {
-      school = 'Gannavaram';
-    } else if (widget.username == 'pt5') {
-      school = 'GannavaramG';
-    } else if (widget.username == 'pt6') {
-      school = 'Kesarapalli';
-    } else if (widget.username == 'pt7') {
-      school = 'Davajigudem';
-    } else if (widget.username == 'pt8') {
-      school = 'Golnapalli';
-    } else if (widget.username == 'pt9') {
-      school = 'MK Baig MC';
-    } else if (widget.username == 'pt10') {
-      school = 'KBC ZP Boys';
-    } else if (widget.username == 'pt11') {
-      school = 'CVR HighSchool';
-    }
+    school = kPtToSchool[widget.username];
 
     // Carousel assignment
     if (school == 'Heal School') {
@@ -1373,12 +1275,7 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
       carouselImages = ['assets/demo.jpg'];
     }
 
-    // 🚀 Now assign pages normally (NO async inside setState)
-    _pages = [
-      buildHomeContent(),
-      CameraScreen(cameras: cameras), // camera screen now safe
-      buildHomeContent3(),
-    ];
+    _rebuildPages();
 
     // Fetch data from backend BEFORE setting ready state
     fetchActivitiesFromBackend();
@@ -1390,7 +1287,10 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
   }
 
   void fetchActivitiesFromBackend() async {
-    final url = Uri.parse('https://api.chandus7.in/getsportsdailyactivity');
+    activities.clear();
+    final url = Uri.parse(
+      'https://api.chandus7.in/getsportsdailyactivity?pt_name=${widget.username}',
+    );
     try {
       final response = await http.get(url);
 
@@ -1398,8 +1298,8 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
         final List<dynamic> data = jsonDecode(response.body);
 
         for (var item in data) {
-          String school = item['school'];
-          String rawDate = item['date']; // e.g. "6/8/2025"
+          String itemSchool = item['school'];
+          String rawDate = item['date'];
           String date = rawDate;
 
           try {
@@ -1408,33 +1308,27 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
               int month = int.parse(parts[0]);
               int day = int.parse(parts[1]);
               int year = int.parse(parts[2]);
-              date =
-                  "${day.toString().padLeft(2, '0')}-${month.toString().padLeft(2, '0')}-$year";
+              date = "${day.toString().padLeft(2, '0')}-${month.toString().padLeft(2, '0')}-$year";
             }
-          } catch (e) {
-            print("Date parse error: $e");
-          }
+          } catch (_) {}
 
-          String time = item['time'];
-          String ptName = item['pt_name'];
-          String activityType = item['activity_type'];
-          String gameName = item['game_name'];
+          final String time = item['time'];
+          final String ptName = item['pt_name'];
+          final String activityType = item['activity_type'];
+          final String gameName = item['game_name'];
 
-          List<dynamic> images = item['images'];
-          List<XFile> imageFiles = images.map<XFile>((img) {
-            return XFile(img['image_url']);
-          }).toList();
+          final List<dynamic> images = item['images'];
+          final List<XFile> imageFiles = images.map<XFile>((img) => XFile(img['image_url'])).toList();
 
-          // Don't call setState for each item — it will slow things down
-          activities.putIfAbsent(school, () => {});
+          activities.putIfAbsent(itemSchool, () => {});
           String finalKey = date;
           int count = 1;
-          while (activities[school]!.containsKey(finalKey)) {
+          while (activities[itemSchool]!.containsKey(finalKey)) {
             count++;
             finalKey = '${date}_$count';
           }
 
-          activities[school]![finalKey] = {
+          activities[itemSchool]![finalKey] = {
             'ptName': ptName,
             'activityType': activityType,
             'gameName': gameName,
@@ -1443,42 +1337,36 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
           };
         }
 
-        // ✅ Now call setState ONCE, AFTER loop is complete
-        setState(() {
-          _flattenData(); // now data exists
-          _filterData();
-        });
+        _flattenData();
+        _filterDataInternal();
+        if (mounted) setState(() => _rebuildPages());
       } else {
-        print("Error fetching activities: ${response.statusCode}");
+        debugPrint("Error fetching activities: ${response.statusCode}");
       }
     } catch (e) {
-      print("Exception: $e");
+      debugPrint("Exception fetching activities: $e");
     }
   }
 
-  final List<String> schools = [
-    'Heal School',
-    'Srmc Krishna',
-    'Share & Care',
-    'Gannavaram',
-    'GannavaramG',
-    'Kesarapalli',
-    'Davajigudem',
-    'Golnapalli',
-    'MK Baig MC',
-    'KBC ZP Boys',
-    'CVR HighSchool',
-  ];
-  void _flattenData() {
-    print(activities);
-    // add inside the loop for each activity
+  void _rebuildPages() {
+    _pages = [
+      buildHomeContent(),
+      CameraScreen(cameras: cameras),
+      buildRecordsContent(),
+      buildHomeContent3(),
+    ];
+  }
 
+  final List<String> schools = kSchools;
+
+  void _flattenData() {
     allData.clear();
     activities.forEach((school, dateMap) {
       dateMap.forEach((dateKey, details) {
+        final cleanDate = dateKey.contains('_') ? dateKey.split('_').first : dateKey;
         allData.add({
           'School': school,
-          'Date': dateKey,
+          'Date': cleanDate,
           'PT Name': details['ptName'] ?? '',
           'Activity': details['activityType'] ?? '',
           'Game': details['gameName'] ?? '',
@@ -1492,35 +1380,33 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
   bool showByMonth = false;
   Set<String> activityDates = {};
 
-  void _filterData() {
+  void _filterDataInternal() {
     final selectedFormat = DateFormat('dd-MM-yyyy');
     final selectedMonth = selectedDate.month;
     final selectedYear = selectedDate.year;
 
-    setState(() {
-      if (showByMonth) {
-        filteredData = allData.where((item) {
-          try {
-            final date = selectedFormat.parse(item['Date']!);
-            return date.month == selectedMonth && date.year == selectedYear;
-          } catch (_) {
-            return false;
-          }
-        }).toList();
-      } else {
-        final selectedDay = selectedDate.day;
-        filteredData = allData.where((item) {
-          try {
-            final date = selectedFormat.parse(item['Date']!);
-            return date.day == selectedDay &&
-                date.month == selectedMonth &&
-                date.year == selectedYear;
-          } catch (_) {
-            return false;
-          }
-        }).toList();
-      }
-    });
+    if (showByMonth) {
+      filteredData = allData.where((item) {
+        try {
+          final date = selectedFormat.parse(item['Date']!);
+          return date.month == selectedMonth && date.year == selectedYear;
+        } catch (_) {
+          return false;
+        }
+      }).toList();
+    } else {
+      final selectedDay = selectedDate.day;
+      filteredData = allData.where((item) {
+        try {
+          final date = selectedFormat.parse(item['Date']!);
+          return date.day == selectedDay &&
+              date.month == selectedMonth &&
+              date.year == selectedYear;
+        } catch (_) {
+          return false;
+        }
+      }).toList();
+    }
   }
 
   void addActivity(String school, String day, Map<String, dynamic> data) {
@@ -1552,37 +1438,141 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
   }
 
   void _handleOptionTap(int index) {
-    Widget page;
-
     switch (index) {
       case 0:
-        page = SchoolDetailsPage(
-          schoolName: school!,
-          activities: activities[school] ?? {},
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SchoolDetailsPage(
+              schoolName: school!,
+              activities: activities[school] ?? {},
+            ),
+          ),
         );
         break;
       case 1:
-        page = SportsChatScreen();
+        _showSupportHelpdesk();
         break;
       case 2:
-        page = LanguagePreferencePage();
+        _showLanguagePreference();
         break;
       case 3:
-        page = SettingsPage();
+        Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsPage()));
         break;
       case 4:
-        page = AboutAppPage();
+        Navigator.push(context, MaterialPageRoute(builder: (_) => AboutAppPage()));
         break;
-
-      default:
-        return;
     }
+  }
 
-    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+  void _showSupportHelpdesk() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE3F2FD),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.support_agent_rounded, color: Color(0xFF1565C0)),
+            ),
+            const SizedBox(width: 12),
+            const Text('Support & Helpdesk'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Need help? Reach us at:', style: TextStyle(color: Colors.black54, fontSize: 13)),
+            SizedBox(height: 10),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.email, color: Color(0xFF1565C0)),
+              title: Text('support@sportsforchange.in'),
+              subtitle: Text('Email Support'),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.phone, color: Colors.green),
+              title: Text('+91 98765 43210'),
+              subtitle: Text('WhatsApp / Call'),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.access_time, color: Colors.orange),
+              title: Text('Mon–Sat, 9 AM – 6 PM'),
+              subtitle: Text('Support Hours'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLanguagePreference() {
+    String selected = 'English';
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3E5F5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.language_rounded, color: Colors.purple),
+              ),
+              const SizedBox(width: 12),
+              const Text('Language Preference'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: ['English', 'Telugu', 'Hindi']
+                .map(
+                  (lang) => RadioListTile<String>(
+                    value: lang,
+                    groupValue: selected,
+                    title: Text(lang),
+                    activeColor: const Color(0xFF1565C0),
+                    onChanged: (v) => setS(() => selected = v!),
+                  ),
+                )
+                .toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1565C0)),
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   int _selectedIndexParticularPtPage = 0;
-  late final List<Widget> _pages;
+  List<Widget> _pages = [];
 
   @override
   Widget build(BuildContext context) {
@@ -1634,7 +1624,6 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
                     leading: const Icon(Icons.person),
                     title: const Text("Profile"),
                     onTap: () {
-                      print("Profile tapped");
                       Navigator.pop(context);
                       setState(() => _selectedIndexParticularPtPage = 2);
 
@@ -1679,7 +1668,21 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
                         context,
                         MaterialPageRoute(builder: (context) => AboutAppPage()),
                       );
-                      // Close cthe drawer
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.logout),
+                    title: const Text("Logout"),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.clear();
+                      if (!context.mounted) return;
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => LoginPage()),
+                        (route) => false,
+                      );
                     },
                   ),
                 ],
@@ -1692,7 +1695,7 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
         title: Center(child: const Text('SportsForChange')),
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_vert), // Right-side menu icon
+            icon: const Icon(Icons.more_vert),
             onPressed: () {
               showMenu<int>(
                 context: context,
@@ -1717,21 +1720,14 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
                   // Action for Option 1
                 } else if (value == 2) {
                   final prefs = await SharedPreferences.getInstance();
-                  await prefs.remove('username');
-
-                  Provider.of<resource>(
+                  await prefs.clear();
+                  if (!context.mounted) return;
+                  Navigator.pushAndRemoveUntil(
                     context,
-                    listen: false,
-                  ).setLoginDetails('default');
-                  BufferPopup().showBufferPopup(
-                    context,
-                    'Logging Out..',
-                    resource().PresentWorkingUser,
-                    'Logged Out ',
+                    MaterialPageRoute(builder: (_) => LoginPage()),
+                    (route) => false,
                   );
-                  // Action for Option 2
                 } else if (value == 3) {
-                  // Action for Option 2
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => SportsChatScreen()),
@@ -1744,23 +1740,20 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndexParticularPtPage,
-        selectedItemColor: Colors.blueAccent,
+        selectedItemColor: const Color(0xFF1565C0),
         unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
         onTap: (index) =>
             setState(() => _selectedIndexParticularPtPage = index),
-
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.sports),
-            label: "Activities",
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: "Home"),
+          BottomNavigationBarItem(icon: Icon(Icons.sports_outlined), activeIcon: Icon(Icons.sports), label: "Activities"),
+          BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), activeIcon: Icon(Icons.list_alt), label: "Records"),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: "Profile"),
         ],
       ),
       body: _pages[_selectedIndexParticularPtPage],
 
-      // ✅ Floating Action Button FIXED (placed correctly)
       floatingActionButton: FloatingActionButton(
         onPressed: () => showModalBottomSheet(
           context: context,
@@ -1768,378 +1761,507 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
           ),
-          builder: (_) =>
-              ActivityFormSheet(schools: schools, onSubmit: addActivity),
+          builder: (_) => ActivityFormSheet(
+            schools: schools,
+            onSubmit: addActivity,
+            onSuccess: fetchActivitiesFromBackend,
+          ),
         ),
-        child: const Icon(Icons.add, size: 36),
+        backgroundColor: const Color(0xFF1565C0),
+        child: const Icon(Icons.add, size: 32, color: Colors.white),
       ),
     );
   }
 
   Widget buildHomeContent() {
+    final now = DateTime.now();
+    final todayKey =
+        '${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}';
+
+    final myActivities = allData
+        .where((a) => a['PT Name'] == widget.username)
+        .toList()
+      ..sort((a, b) {
+        try {
+          final da = DateFormat('dd-MM-yyyy').parse(a['Date']!);
+          final db = DateFormat('dd-MM-yyyy').parse(b['Date']!);
+          return db.compareTo(da);
+        } catch (_) {
+          return 0;
+        }
+      });
+
+    final submittedToday = myActivities.any((a) => (a['Date'] ?? '') == todayKey);
+
+    int thisMonthCount = 0;
+    for (final a in myActivities) {
+      try {
+        final parts = (a['Date'] ?? '').split('-');
+        if (parts.length >= 3 &&
+            int.parse(parts[1]) == now.month &&
+            int.parse(parts[2]) == now.year) {
+          thisMonthCount++;
+        }
+      } catch (_) {}
+    }
+
+    final recent = myActivities.take(5).toList();
+
     return SingleChildScrollView(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ---------------- Carousel ----------------
-          CarouselSlider(
-            options: CarouselOptions(
-              height: 200.0,
-              autoPlay: true,
-              enlargeCenterPage: true,
+          // ── Gradient header ──────────────────────
+          Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF1A237E), Color(0xFF0288D1)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
-            items: carouselImages.map((image) {
-              return Builder(
-                builder: (BuildContext context) {
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.asset(
-                      image,
-                      fit: BoxFit.cover,
-                      width: MediaQuery.of(context).size.width,
-                    ),
-                  );
-                },
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 20),
-
-          // ---------------- School Data ----------------
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.fromLTRB(20, 48, 20, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(
-                  child: Text(
-                    school ?? '',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blueAccent,
+                Row(
+                  children: [
+                    FutureBuilder<String?>(
+                      future: fetchUserProfileImageUrl(widget.username),
+                      builder: (context, snap) => CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Colors.white24,
+                        backgroundImage: snap.hasData
+                            ? NetworkImage(snap.data!) as ImageProvider
+                            : const AssetImage('assets/imgicon1.png'),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.username.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            school ?? '—',
+                            style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontSize: 14),
+                          ),
+                          Text(
+                            DateFormat('EEE, d MMM yyyy').format(now),
+                            style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.65),
+                                fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: submittedToday
+                        ? Colors.green.withValues(alpha: 0.25)
+                        : Colors.orange.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: submittedToday
+                          ? Colors.greenAccent.withValues(alpha: 0.7)
+                          : Colors.orangeAccent.withValues(alpha: 0.7),
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                const Text('Welcome PtSir', style: TextStyle(fontSize: 16)),
-                const SizedBox(height: 8),
-                Text(
-                  'Heal Paradise School offers excellent education and sports facilities to nurture students into well-rounded individuals.',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                  child: Row(
+                    children: [
+                      Icon(
+                        submittedToday
+                            ? Icons.check_circle_outline
+                            : Icons.schedule,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        submittedToday
+                            ? "Activity submitted today ✓"
+                            : "No activity submitted today",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
 
-          // ---------------- Sports / Activities ----------------
+          // ── Stats row ────────────────────────────
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Row(
               children: [
-                const Text(
-                  'Recent Activities',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 10),
+                _ptStatCard("This Month", thisMonthCount,
+                    Icons.calendar_month, const Color(0xFF1565C0)),
+                const SizedBox(width: 10),
+                _ptStatCard("Total", myActivities.length,
+                    Icons.bar_chart, const Color(0xFF2E7D32)),
+                const SizedBox(width: 10),
+                _ptStatCard("School", 1,
+                    Icons.school, const Color(0xFFAD1457)),
+              ],
+            ),
+          ),
 
-                // Months Grid 3x4
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: months.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 2.0,
-                  ),
-                  itemBuilder: (context, index) {
-                    return InkWell(
-                      onTap: () {
+          const SizedBox(height: 16),
+
+          // ── Quick actions ─────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _ptQuickAction(
+                    "Calendar",
+                    Icons.calendar_today_outlined,
+                    const Color(0xFFE3F2FD),
+                    const Color(0xFF1565C0),
+                    () {
+                      if (school != null) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => SchoolDetailsPage(
+                            builder: (_) => SchoolDetailsPage(
                               schoolName: school!,
                               activities: activities[school] ?? {},
                             ),
                           ),
                         );
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.lightBlue[50],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.blueAccent),
-                        ),
-                        child: Center(
-                          child: Text(
-                            months[index],
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _ptQuickAction(
+                    "Records",
+                    Icons.list_alt_outlined,
+                    const Color(0xFFE8F5E9),
+                    const Color(0xFF2E7D32),
+                    () => setState(
+                        () => _selectedIndexParticularPtPage = 2),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _ptQuickAction(
+                    "Gallery",
+                    Icons.photo_library_outlined,
+                    const Color(0xFFFFF3E0),
+                    const Color(0xFFE65100),
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const GalleryScreen()),
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
+
+          const SizedBox(height: 20),
+
+          // ── Recent submissions ────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Recent Submissions",
+                  style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87),
+                ),
+                if (school != null)
+                  TextButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SchoolDetailsPage(
+                          schoolName: school!,
+                          activities: activities[school] ?? {},
+                        ),
+                      ),
+                    ),
+                    child: const Text("See all"),
+                  ),
+              ],
+            ),
+          ),
+
+          if (recent.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 48),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.sports_handball,
+                        size: 56, color: Colors.grey.shade300),
+                    const SizedBox(height: 12),
+                    Text(
+                      "No activities yet.\nTap + to submit your first activity!",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Colors.grey.shade500, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+              itemCount: recent.length,
+              itemBuilder: (context, i) {
+                final act = recent[i];
+                return Card(
+                  elevation: 1.5,
+                  margin: const EdgeInsets.only(bottom: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: const Color(0xFFE3F2FD),
+                      child: const Icon(Icons.sports,
+                          color: Color(0xFF1565C0), size: 20),
+                    ),
+                    title: Text(
+                      act['Game'] ?? act['Activity'] ?? 'Activity',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    subtitle: Text(
+                      act['Date'] ?? '',
+                      style: TextStyle(
+                          color: Colors.grey.shade600, fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.chevron_right,
+                        color: Colors.grey),
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
   }
 
-  Widget buildHomeContent2() {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          // ---------------- Carousel ----------------
-          CarouselSlider(
-            options: CarouselOptions(
-              height: 200.0,
-              autoPlay: true,
-              enlargeCenterPage: true,
+  Widget _ptStatCard(
+      String label, int value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 5),
+            Text(
+              '$value',
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: color),
             ),
-            items: carouselImages.map((image) {
-              return Builder(
-                builder: (BuildContext context) {
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.asset(
-                      image,
-                      fit: BoxFit.cover,
-                      width: MediaQuery.of(context).size.width,
-                    ),
-                  );
-                },
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 20),
-
-          // ---------------- School Data ----------------
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Text(
-                    school ?? '',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blueAccent,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text('Welcome2 PtSir', style: TextStyle(fontSize: 16)),
-                const SizedBox(height: 8),
-                Text(
-                  'Heal Paradise School offers excellent education and sports facilities to nurture students into well-rounded individuals.',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ],
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
             ),
-          ),
-          const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
 
-          // ---------------- Sports / Activities ----------------
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Recent Activities',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Months Grid 3x4
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: months.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 2.0,
-                  ),
-                  itemBuilder: (context, index) {
-                    return InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => SchoolDetailsPage(
-                              schoolName: school!,
-                              activities: activities[school] ?? {},
-                            ),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.lightBlue[50],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.blueAccent),
-                        ),
-                        child: Center(
-                          child: Text(
-                            months[index],
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
+  Widget _ptQuickAction(
+    String label,
+    IconData icon,
+    Color bg,
+    Color fg,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+            color: bg, borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          children: [
+            Icon(icon, color: fg, size: 24),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w600, color: fg),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget buildHomeContent3() {
-    final options = [
-      {"title": "My Activities", "icon": Icons.task_alt_rounded},
-      {"title": "Support & Helpdesk", "icon": Icons.support_agent_rounded},
-      {"title": "Language Preference", "icon": Icons.language_rounded},
-      {"title": "Settings", "icon": Icons.settings_outlined},
-      {"title": "About App", "icon": Icons.info_outline},
+    final List<Map<String, dynamic>> options = [
+      {"title": "My Activities", "icon": Icons.task_alt_rounded, "color": const Color(0xFF1565C0), "subtitle": "View school activities"},
+      {"title": "Support & Helpdesk", "icon": Icons.support_agent_rounded, "color": Colors.teal, "subtitle": "Contact support team"},
+      {"title": "Language Preference", "icon": Icons.language_rounded, "color": Colors.purple, "subtitle": "Change app language"},
+      {"title": "Settings", "icon": Icons.settings_outlined, "color": Colors.orange, "subtitle": "App preferences"},
+      {"title": "About App", "icon": Icons.info_outline, "color": Colors.grey, "subtitle": "Version & developer info"},
     ];
 
     return Column(
       children: [
-        const SizedBox(height: 8),
-
         // -------- HEADER GRADIENT SECTION --------
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 28),
+          padding: const EdgeInsets.fromLTRB(20, 36, 20, 28),
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF0D92FF), Color(0xFF05A64C)],
+              colors: [Color(0xFF1A237E), Color(0xFF0288D1)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
           child: Column(
             children: [
-              // Avatar
               FutureBuilder<String?>(
                 future: fetchUserProfileImageUrl(widget.username),
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const CircleAvatar(
-                      backgroundImage: AssetImage('assets/imgicon1.png'),
-                    );
-                  }
-                  return CircleAvatar(
-                    backgroundImage: NetworkImage(snapshot.data!),
+                  return Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      radius: 48,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: snapshot.hasData
+                          ? NetworkImage(snapshot.data!) as ImageProvider
+                          : const AssetImage('assets/imgicon1.png'),
+                    ),
                   );
                 },
               ),
-
-              const SizedBox(height: 10),
-
-              // Welcome Text
+              const SizedBox(height: 14),
               const Text(
-                "Welcome",
-                style: TextStyle(
+                "Welcome back,",
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.username.toUpperCase(),
+                style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
                 ),
               ),
-              const SizedBox(height: 16),
-
-              // Login/Register Button
-              OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.white, width: 1.2),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  widget.username,
-                  style: TextStyle(color: Colors.white, fontSize: 14),
+                  school ?? 'Physical Trainer',
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
                 ),
               ),
             ],
           ),
         ),
 
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
 
         // -------- OPTIONS LIST --------
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             itemCount: options.length,
-            separatorBuilder: (_, __) => const Divider(height: 0),
+            separatorBuilder: (_, __) => const Divider(height: 1, indent: 60),
             itemBuilder: (context, index) {
               final item = options[index];
+              final color = item["color"] as Color;
               return InkWell(
                 onTap: () => _handleOptionTap(index),
-
                 borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: const Color(0xFFE9F4FF),
-                        child: Icon(
-                          item["icon"] as IconData,
-                          size: 20,
-                          color: const Color(0xFF015AA5),
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        child: Icon(item["icon"] as IconData, size: 22, color: color),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
-                        child: Text(
-                          item["title"] as String,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item["title"] as String,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              item["subtitle"] as String,
+                              style: const TextStyle(fontSize: 12, color: Colors.black45),
+                            ),
+                          ],
                         ),
                       ),
-                      const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 14,
-                        color: Colors.grey,
-                      ),
+                      Icon(Icons.arrow_forward_ios_rounded, size: 13, color: Colors.grey.shade400),
                     ],
                   ),
                 ),
@@ -2148,6 +2270,130 @@ class _ParticularPtPageState extends State<ParticularPtPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget buildRecordsContent() {
+    final myActivities = allData
+        .where((a) => a['PT Name'] == widget.username)
+        .toList()
+      ..sort((a, b) {
+        try {
+          final da = DateFormat('dd-MM-yyyy').parse(a['Date']!);
+          final db = DateFormat('dd-MM-yyyy').parse(b['Date']!);
+          return db.compareTo(da);
+        } catch (_) {
+          return 0;
+        }
+      });
+
+    return Container(
+      color: const Color(0xFFF3F6FB),
+      child: myActivities.isEmpty
+          ? const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.history, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'No records yet',
+                    style: TextStyle(color: Colors.grey, fontSize: 17, fontWeight: FontWeight.w500),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Submit your first activity using the + button',
+                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            )
+          : Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF1A237E), Color(0xFF0288D1)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.list_alt, color: Colors.white, size: 22),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'My Submissions',
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${myActivities.length} total',
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(14),
+                    itemCount: myActivities.length,
+                    itemBuilder: (context, index) {
+                      final item = myActivities[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          leading: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE3F2FD),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.sports, color: Color(0xFF1565C0), size: 22),
+                          ),
+                          title: Text(
+                            item['Game'] ?? '—',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 3),
+                              Text(
+                                item['Activity'] ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${item['Date']} • ${item['Time']}',
+                                style: const TextStyle(fontSize: 11, color: Colors.black45),
+                              ),
+                            ],
+                          ),
+                          trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                          isThreeLine: true,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
@@ -2339,341 +2585,238 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  final TextEditingController _searchController = TextEditingController();
-  String _searchResult = '';
-  final Map<DateTime, List<Map<String, dynamic>>> _events = {};
+  Map<DateTime, List<Map<String, dynamic>>> _events = {};
 
   @override
   void initState() {
     super.initState();
-
     _prepareEvents();
   }
 
   void _prepareEvents() {
-    widget.activities.forEach((dateString, data) {
+    final Map<DateTime, List<Map<String, dynamic>>> events = {};
+    widget.activities.forEach((dateKey, data) {
       try {
-        final parts = dateString.split('-');
+        final cleanDate = dateKey.contains('_') ? dateKey.split('_').first : dateKey;
+        final parts = cleanDate.split('-');
         if (parts.length == 3) {
-          int day = int.parse(parts[0]);
-          int month = int.parse(parts[1]);
-          int year = int.parse(parts[2]);
+          final day = int.parse(parts[0]);
+          final month = int.parse(parts[1]);
+          final year = int.parse(parts[2]);
           final date = DateTime(year, month, day);
-          _events[date] = _events[date] ?? [];
-          _events[date]!.add(data);
+          events[date] = events[date] ?? [];
+          events[date]!.add(data);
         }
-      } catch (e) {
-        print('Date parse error: $e');
-      }
+      } catch (_) {}
     });
+    setState(() => _events = events);
   }
 
   List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
     return _events[DateTime(day.year, day.month, day.day)] ?? [];
   }
 
-  void _searchDate() {
-    FocusScope.of(context).unfocus();
-    try {
-      final parts = _searchController.text.split('-');
-      if (parts.length == 3) {
-        int day = int.parse(parts[0]);
-        int month = int.parse(parts[1]);
-        int year = int.parse(parts[2]);
-        final date = DateTime(year, month, day);
-        final events = _getEventsForDay(date);
-
-        if (events.isNotEmpty) {
-          setState(() {
-            _selectedDay = date;
-            _focusedDay = date;
-          });
-        } else {
-          setState(() => _searchResult = 'No activity on selected date. ');
-        }
-      }
-    } catch (e) {
-      setState(() => _searchResult = 'Invalid date format. Use dd-mm-yyyy');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    print(widget.activities);
-    final selectedEvents = _selectedDay != null
-        ? _getEventsForDay(_selectedDay!)
-        : [];
+    final selectedActivities = _selectedDay != null ? _getEventsForDay(_selectedDay!) : <Map<String, dynamic>>[];
 
     return Scaffold(
-      resizeToAvoidBottomInset: true,
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF3F6FB),
       appBar: AppBar(
-        title: Text('${widget.schoolName} Activities Calendar'),
-        backgroundColor: Colors.orangeAccent,
-        elevation: 4,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Material(
-              elevation: 6,
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+            Text(widget.schoolName, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text('${widget.activities.length} activities total', style: const TextStyle(fontSize: 11, color: Colors.white70)),
+          ],
+        ),
+        backgroundColor: const Color(0xFF1565C0),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          Container(
+            color: Colors.white,
+            child: TableCalendar<Map<String, dynamic>>(
+              firstDay: DateTime.utc(2020, 1, 1),
+              lastDay: DateTime.utc(2030, 12, 31),
+              focusedDay: _focusedDay,
+              calendarFormat: _calendarFormat,
+              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+              eventLoader: _getEventsForDay,
+              startingDayOfWeek: StartingDayOfWeek.monday,
+              calendarStyle: CalendarStyle(
+                outsideDaysVisible: false,
+                markerDecoration: const BoxDecoration(
+                  color: Color(0xFF1565C0),
+                  shape: BoxShape.circle,
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.deepPurple.shade200),
+                selectedDecoration: const BoxDecoration(
+                  color: Color(0xFF1565C0),
+                  shape: BoxShape.circle,
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Search (dd-mm-yyyy)',
-                          border: InputBorder.none,
-                          icon: Icon(Icons.search, color: Colors.deepPurple),
-                        ),
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: _searchDate,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurple,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text("Go", style: TextStyle(color: Colors.white)),
-                    ),
-                  ],
+                todayDecoration: BoxDecoration(
+                  color: const Color(0xFF1565C0).withOpacity(0.3),
+                  shape: BoxShape.circle,
                 ),
+                markerSize: 6,
+                markersMaxCount: 1,
               ),
+              headerStyle: const HeaderStyle(
+                formatButtonVisible: false,
+                titleCentered: true,
+                titleTextStyle: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Color(0xFF1A237E),
+                ),
+                leftChevronIcon: Icon(Icons.chevron_left, color: Color(0xFF1565C0)),
+                rightChevronIcon: Icon(Icons.chevron_right, color: Color(0xFF1565C0)),
+              ),
+              onDaySelected: (selectedDay, focusedDay) {
+                setState(() {
+                  _selectedDay = selectedDay;
+                  _focusedDay = focusedDay;
+                });
+              },
+              onFormatChanged: (format) {
+                setState(() => _calendarFormat = format);
+              },
+              onPageChanged: (focusedDay) {
+                _focusedDay = focusedDay;
+              },
             ),
-            const SizedBox(height: 4),
-
-            if (_searchResult.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Text(_searchResult, style: TextStyle(color: Colors.red)),
-              ),
-            Padding(
-              padding: const EdgeInsets.only(top: 20.0, bottom: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 6,
-                        backgroundColor: Colors.deepPurple,
-                      ),
-                      SizedBox(width: 6),
-                      Text(' Available', style: TextStyle(fontSize: 14)),
-                    ],
-                  ),
-                  SizedBox(width: 20),
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 6,
-                        backgroundColor: Colors.grey[300],
-                      ),
-                      SizedBox(width: 6),
-                      Text("Unavailable", style: TextStyle(fontSize: 14)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
+          ),
+          if (_selectedDay != null)
             Container(
-              decoration: BoxDecoration(
-                color: Colors.deepPurple.shade50,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 8,
-                    offset: Offset(0, 4),
+              color: const Color(0xFFE8F0FE),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_today, size: 15, color: Color(0xFF1565C0)),
+                  const SizedBox(width: 8),
+                  Text(
+                    DateFormat('EEE, d MMM yyyy').format(_selectedDay!),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Color(0xFF1A237E),
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: selectedActivities.isEmpty ? Colors.grey : const Color(0xFF1565C0),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      selectedActivities.isEmpty
+                          ? 'No activities'
+                          : '${selectedActivities.length} ${selectedActivities.length == 1 ? "activity" : "activities"}',
+                      style: const TextStyle(color: Colors.white, fontSize: 11),
+                    ),
                   ),
                 ],
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: TableCalendar(
-                  firstDay: DateTime.utc(2020, 1, 1),
-                  lastDay: DateTime.utc(2030, 12, 31),
-                  focusedDay: _focusedDay,
-                  calendarFormat: _calendarFormat,
-                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                  eventLoader: _getEventsForDay,
-                  onDaySelected: (selectedDay, focusedDay) {
-                    setState(() {
-                      _selectedDay = selectedDay;
-                      _focusedDay = focusedDay;
-                    });
-                  },
-                  onFormatChanged: (format) {
-                    setState(() {
-                      _calendarFormat = format;
-                    });
-                  },
-                  onPageChanged: (focusedDay) {
-                    _focusedDay = focusedDay;
-                  },
-                  headerStyle: HeaderStyle(
-                    titleTextStyle: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
-                    ),
-                    formatButtonDecoration: BoxDecoration(
-                      color: Colors.deepPurple,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    formatButtonTextStyle: TextStyle(color: Colors.white),
-                    leftChevronIcon: Icon(
-                      Icons.chevron_left,
-                      color: Colors.deepPurple,
-                    ),
-                    rightChevronIcon: Icon(
-                      Icons.chevron_right,
-                      color: Colors.deepPurple,
-                    ),
-                  ),
-                  calendarStyle: CalendarStyle(
-                    todayDecoration: BoxDecoration(
-                      color: Colors.orange,
-                      shape: BoxShape.circle,
-                    ),
-                    selectedDecoration: BoxDecoration(
-                      color: Colors.deepPurple,
-                      shape: BoxShape.circle,
-                    ),
-                    defaultTextStyle: TextStyle(fontWeight: FontWeight.w500),
-                    weekendTextStyle: TextStyle(color: Colors.redAccent),
-                    outsideDaysVisible: false,
-                  ),
-                  calendarBuilders: CalendarBuilders(
-                    markerBuilder: (context, day, events) {
-                      return SizedBox();
-                    },
-                    defaultBuilder: (context, day, focusedDay) {
-                      final isAvailable = _getEventsForDay(day).isNotEmpty;
-                      return Center(
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: isAvailable
-                                ? Colors.deepPurple
-                                : Colors.grey[200],
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            '${day.day}',
-                            style: TextStyle(
-                              color: isAvailable
-                                  ? Colors.white
-                                  : Colors.black87,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
             ),
-            const SizedBox(height: 20),
-            if (selectedEvents.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 1.0,
-                  vertical: 1,
-                ),
-                child: SizedBox(
-                  width: double.infinity, // Ensures full width
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    elevation: 6,
-                    child: Stack(
+          Expanded(
+            child: _selectedDay == null
+                ? const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "PT Name: ${selectedEvents.first['ptName']}",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                "Activity Type: ${selectedEvents.first['activityType']}",
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Text(
-                                "Game Name: ${selectedEvents.first['gameName']}",
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Text(
-                                "Time : ${selectedEvents.first['time']}",
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              SizedBox(height: 5),
-                            ],
-                          ),
+                        Icon(Icons.touch_app, size: 56, color: Colors.grey),
+                        SizedBox(height: 12),
+                        Text('Tap a date to view activities', style: TextStyle(color: Colors.grey, fontSize: 15)),
+                        SizedBox(height: 6),
+                        Text('Blue dot = activities recorded', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      ],
+                    ),
+                  )
+                : selectedActivities.isEmpty
+                    ? const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.sports_handball, size: 56, color: Colors.grey),
+                            SizedBox(height: 12),
+                            Text('No activities on this date', style: TextStyle(color: Colors.grey, fontSize: 15)),
+                          ],
                         ),
-                        Positioned(
-                          top: 10,
-                          right: 15,
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.remove_red_eye,
-                              color: Colors.deepPurple,
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: selectedActivities.length,
+                        itemBuilder: (context, index) {
+                          final act = selectedActivities[index];
+                          final selectedDateStr = DateFormat('dd-MM-yyyy').format(_selectedDay!);
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: const [
+                                BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3)),
+                              ],
                             ),
-                            onPressed: () {
-                              for (var i in selectedEvents.first['images']) {
-                                debugPrint('IMAGE TYPE: ${i.runtimeType}');
-                                debugPrint('IMAGE PATH: ${i.path}');
-                              }
-
-                              Navigator.push(
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => ActivityDetailsPage(
                                     schoolName: widget.schoolName,
-                                    date:
-                                        '${_selectedDay!.day.toString().padLeft(2, '0')}-${_selectedDay!.month.toString().padLeft(2, '0')}-${_selectedDay!.year}',
-                                    data: selectedEvents.first,
+                                    date: selectedDateStr,
+                                    data: act,
                                   ),
                                 ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 48,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE3F2FD),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(Icons.sports, color: Color(0xFF1565C0), size: 26),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            act['gameName'] ?? '---',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                              color: Color(0xFF1A237E),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            '${act['ptName'] ?? ""} • ${act['time'] ?? ""}',
+                                            style: const TextStyle(fontSize: 12, color: Colors.black54),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF1565C0)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+          ),
+        ],
       ),
     );
   }
@@ -2690,134 +2833,209 @@ class ActivityDetailsPage extends StatelessWidget {
     required this.date,
     required this.data,
   });
-  // void initState() {
-  //   fetchActivitiesFromBackend();
-  // }
-
-  // void fetchActivitiesFromBackend() async {
-  //   final url = Uri.parse('http://13.203.219.206:8000/getsportsdailyactivity');
-  //   try {
-  //     final response = await http.get(url);
-
-  //     if (response.statusCode == 200) {
-  //       final List<dynamic> data = jsonDecode(response.body);
-
-  //       for (var item in data) {
-  //         List<dynamic> images = item['images'];
-  //         List<XFile> imageFiles = images.map<XFile>((img) {
-  //           return XFile(img['image_url']);
-  //         }).toList();
-  //         print(imageFiles);
-  //         print("object---------------------------------------");
-  //       }
-  //     } else {
-  //       print("Error fetching activities: ${response.statusCode}");
-  //     }
-  //   } catch (e) {
-  //     print("Exception: $e");
-  //   }
-  // }
 
   @override
   Widget build(BuildContext context) {
-    // ✅ LIST, not single
+    final List<XFile> images = (data['images'] as List<dynamic>?)?.cast<XFile>() ?? [];
+    final gameName = data['gameName'] ?? '—';
+    final ptName = data['ptName'] ?? '—';
+    final activityType = data['activityType'] ?? '—';
+    final time = data['time'] ?? '—';
 
-    final List<XFile> images = data['images'];
-    return Scaffold(
-      appBar: AppBar(title: Text('Activity on $date')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+    Widget infoRow(IconData icon, String label, String value, Color color) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, size: 18, color: color),
           ),
-          elevation: 6,
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                InkWell(
-                  onTap: () {
-                    for (var i in images) {
-                      debugPrint('IMAGE TYPE: ${i.runtimeType}');
-                      debugPrint('IMAGE PATH: ${i.path}');
-                    }
-                    debugPrint('Images raw data: ${data['images']}');
-                    debugPrint('Images length: ${images.length}');
-                    for (int i = 0; i < images.length; i++) {
-                      debugPrint('Image[$i] path: ${images[i].path}');
-                    }
-                  },
-                  child: Text(
-                    "PT Name: ${data['ptName']}",
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-                  ),
-                ),
-
-                SizedBox(height: 8),
-
-                Text(
-                  "Game Name: ${data['gameName']}",
-                  style: TextStyle(fontSize: 20),
-                ),
-                SizedBox(height: 8),
-
-                Text(
-                  "Description: ${data['activityType']}",
-                  style: TextStyle(fontSize: 20),
-                ),
-                Text("Time: ${data['time']}", style: TextStyle(fontSize: 20)),
-                SizedBox(height: 20),
-                Text(
-                  "Activity Media:",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 12),
-
-                /// ✅ Use GridView for 3 images per row
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: images.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                  ),
-                  itemBuilder: (context, index) {
-                    final XFile file = images[index];
-
-                    final bool isRemote = file.path.startsWith('http');
-
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: isRemote
-                          ? Image.network(
-                              file.path,
-                              fit: BoxFit.cover,
-                              loadingBuilder: (context, child, loading) {
-                                if (loading == null) return child;
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              },
-                              errorBuilder: (_, __, ___) =>
-                                  const Icon(Icons.broken_image, size: 40),
-                            )
-                          : Image.file(
-                              File(file.path),
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  const Icon(Icons.broken_image, size: 40),
-                            ),
-                    );
-                  },
-                ),
+                Text(label, style: const TextStyle(fontSize: 11, color: Colors.black45, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 2),
+                Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               ],
             ),
           ),
-        ),
+        ],
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF3F6FB),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 160,
+            pinned: true,
+            backgroundColor: const Color(0xFF1565C0),
+            foregroundColor: Colors.white,
+            flexibleSpace: FlexibleSpaceBar(
+              titlePadding: const EdgeInsets.fromLTRB(56, 0, 16, 14),
+              title: Text(
+                gameName,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF0D47A1), Color(0xFF1565C0), Color(0xFF42A5F5)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Center(
+                  child: Icon(Icons.sports_handball, size: 70, color: Colors.white.withValues(alpha: 0.2)),
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Date badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE3F2FD),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.calendar_today, size: 14, color: Color(0xFF1565C0)),
+                        const SizedBox(width: 6),
+                        Text(
+                          date,
+                          style: const TextStyle(color: Color(0xFF1565C0), fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Info card
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          infoRow(Icons.person_outline, 'PT Name', ptName, const Color(0xFF1565C0)),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 10),
+                            child: Divider(height: 1),
+                          ),
+                          infoRow(Icons.sports_handball, 'Game', gameName, Colors.orange),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 10),
+                            child: Divider(height: 1),
+                          ),
+                          infoRow(Icons.description_outlined, 'Activity Description', activityType, Colors.green),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 10),
+                            child: Divider(height: 1),
+                          ),
+                          infoRow(Icons.access_time, 'Time', time, Colors.purple),
+                          if (images.isNotEmpty) ...[
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 10),
+                              child: Divider(height: 1),
+                            ),
+                            infoRow(Icons.photo_library_outlined, 'Media', '${images.length} photo(s)', Colors.teal),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  if (images.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Activity Photos',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF1A237E)),
+                    ),
+                    const SizedBox(height: 12),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: images.length,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                      ),
+                      itemBuilder: (context, index) {
+                        final XFile file = images[index];
+                        final bool isRemote = file.path.startsWith('http');
+                        return GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Scaffold(
+                                backgroundColor: Colors.black,
+                                appBar: AppBar(
+                                  backgroundColor: Colors.black,
+                                  foregroundColor: Colors.white,
+                                ),
+                                body: Center(
+                                  child: isRemote
+                                      ? Image.network(file.path)
+                                      : Image.file(File(file.path)),
+                                ),
+                              ),
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: isRemote
+                                ? Image.network(
+                                    file.path,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (ctx, child, loading) =>
+                                        loading == null
+                                            ? child
+                                            : Container(
+                                                color: const Color(0xFFE3F2FD),
+                                                child: const Center(child: CircularProgressIndicator()),
+                                              ),
+                                    errorBuilder: (_, __, ___) => Container(
+                                      color: const Color(0xFFEEEEEE),
+                                      child: const Icon(Icons.broken_image, color: Colors.grey, size: 40),
+                                    ),
+                                  )
+                                : Image.file(
+                                    File(file.path),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        const Icon(Icons.broken_image, size: 40),
+                                  ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2888,7 +3106,10 @@ class _SportsChatScreenState extends State<SportsChatScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 1,
-        leading: Icon(Icons.arrow_back, color: Colors.black),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -3025,11 +3246,13 @@ class _SportsChatScreenState extends State<SportsChatScreen> {
 class ActivityFormSheet extends StatefulWidget {
   final List<String> schools;
   final Function(String, String, Map<String, dynamic>) onSubmit;
+  final VoidCallback? onSuccess;
 
   const ActivityFormSheet({
     super.key,
     required this.schools,
     required this.onSubmit,
+    this.onSuccess,
   });
 
   @override
@@ -3041,6 +3264,9 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
   String? activityType, gameName, selectedSchool;
   String ptName = "School not selected";
   String ptName2 = "School not selected";
+  int _participantsCount = 0;
+  final TextEditingController _participantsController =
+      TextEditingController(text: '0');
   final TextEditingController _ptNameController = TextEditingController();
 
   DateTime? selectedDate;
@@ -3075,26 +3301,9 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
     'Swimming',
     'Other',
   ];
-  final Map<String, String> ptToSchoolMap = {
-    'pt1': 'Heal School',
-    'pt2': 'Srmc Krishna',
-    'pt3': 'Share & Care',
-    'pt4': 'Gannavaram',
-    'pt5': 'GannavaramG',
-    'pt6': 'Kesarapalli',
-    'pt7': 'Davajigudem',
-    'pt8': 'Golnapalli',
-    'pt9': 'MK Baig MC',
-    'pt10': 'KBC ZP Boys',
-    'pt11': 'CVR HighSchool',
-  };
+  final Map<String, String> ptToSchoolMap = kPtToSchool;
 
   String? selectedGame; // will bind to the dropdown
-
-  // A convenient helper for setting the default school once
-  void _ensureDefaultSchool() {
-    selectedSchool = selectedSchool;
-  }
 
   void setSchoolByPtName(String ptName) {
     setState(() {
@@ -3129,12 +3338,8 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
     final username = await UserSession.getUsername();
 
     setState(() {
-      print(username);
       ptName2 = username ?? "School Not Selected..";
-      _ptNameController.text = ptName2; // ✅ THIS IS THE FIX
-
-      print(_ptNameController);
-      print("=======================================================");
+      _ptNameController.text = ptName2;
     });
 
     setSchoolByPtName(ptName2);
@@ -3189,21 +3394,19 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
   }
 
   void _submit() async {
-    print("entered submit");
+    if (selectedSchool == null || selectedSchool!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('School not detected. Please re-open this form.')),
+      );
+      return;
+    }
 
-    // Validate: require form, date and start/end times (you removed hour/am/pm dropdowns)
     if (!(_formKey.currentState?.validate() == true &&
         selectedDate != null &&
         _startTime != null &&
         _endTime != null)) {
-      print(
-        "Validation failed: form valid? ${_formKey.currentState?.validate()} "
-        "selectedDate:$selectedDate start:$_startTime end:$_endTime",
-      );
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please fill all required fields (date & times).'),
-        ),
+        const SnackBar(content: Text('Please fill all required fields (date & times).')),
       );
       return;
     }
@@ -3211,9 +3414,6 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
     setState(() => _isLoading = true);
 
     try {
-      print("validated");
-
-      // Save form fields from TextFormFields
       _formKey.currentState!.save();
 
       // Compute duration & hour/am-pm from start/end times BEFORE building fields
@@ -3233,111 +3433,73 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
       final String formattedTime =
           '${selectedHour!}:00 ${selectedAmPm!} (${selectedDuration!})';
 
-      print("formattedDate: $formattedDate");
-      print("formattedTime: $formattedTime");
+      final uri = Uri.parse("https://api.chandus7.in/postsportsdailyactivity");
+      final request = http.MultipartRequest('POST', uri);
 
-      var uri = Uri.parse("https://api.chandus7.in/postsportsdailyactivity");
-      var request = http.MultipartRequest('POST', uri);
-
-      // pick correct game_name: prefer selectedGame (dropdown) else fallback to gameName text field
       final String gameValue = selectedGame ?? gameName ?? '';
 
-      request.fields['pt_name'] = ptName2 ?? '';
+      request.fields['pt_name'] = ptName2;
       request.fields['activity_type'] = activityType ?? '';
       request.fields['game_name'] = gameValue;
       request.fields['date'] = formattedDate;
       request.fields['time'] = formattedTime;
       request.fields['school'] = selectedSchool ?? '';
+      request.fields['participants_count'] = _participantsCount.toString();
 
-      // Add files under the repeated key 'files' (Django getlist('files'))
       if (mediaFiles != null && mediaFiles!.isNotEmpty) {
-        print("Attaching ${mediaFiles!.length} files...");
-        for (int i = 0; i < mediaFiles!.length; i++) {
-          final file = mediaFiles![i];
-          // fromPath is simpler and handles content-type automatically on mobile
-          final multipartFile = await http.MultipartFile.fromPath(
-            'images', // repeated key — backend should accept getlist('files')
-            file.path,
-            filename: file.name,
-          );
-          request.files.add(multipartFile);
+        for (final file in mediaFiles!) {
+          request.files.add(await http.MultipartFile.fromPath('images', file.path, filename: file.name));
         }
       }
 
-      print("Request fields: ${request.fields}");
-      print("Request files: ${request.files.map((f) => f.filename).toList()}");
-
       final streamedResp = await request.send();
-
-      // Read response body
       final respBody = await streamedResp.stream.bytesToString();
       setState(() => _isLoading = false);
 
-      print("Response status: ${streamedResp.statusCode}");
-      print("Response body: $respBody");
-
       if (streamedResp.statusCode == 200 || streamedResp.statusCode == 201) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('✅ Activity submitted')));
-
-        // Notifications flow (unchanged)
         try {
-          final tokenResponse = await http.get(
-            Uri.parse("https://api.chandus7.in/getsportsnotificationtoken/"),
+          await http.post(
+            Uri.parse("https://api.chandus7.in/sendnotificationtoall/"),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({"title": "New PT Activity!", "body": "New activity posted by $ptName2"}),
           );
-
-          if (tokenResponse.statusCode == 200) {
-            final data = jsonDecode(tokenResponse.body);
-            final List<dynamic> tokens = data['tokens'] ?? [];
-
-            await http.post(
-              Uri.parse("https://api.chandus7.in/sendnotificationtoall/"),
-              headers: {"Content-Type": "application/json"},
-              body: jsonEncode({
-                "title": "New PT Activity!",
-                "body": "New activity posted by $ptName",
-              }),
-            );
-
-            print("🔔 Notifications sent to ${tokens.length} devices.");
-          } else {
-            print("⚠️ Failed to fetch tokens: ${tokenResponse.body}");
-          }
         } catch (e) {
-          print("⚠️ Notification error: $e");
+          debugPrint("Notification error: $e");
         }
 
+        if (!context.mounted) return;
+        widget.onSuccess?.call();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ Activity submitted & notifications sent!')),
+          const SnackBar(content: Text('Activity submitted successfully!')),
         );
-
         Navigator.pop(context);
       } else {
-        print("❌ Submission error: $respBody");
+        debugPrint("Submission error ${ streamedResp.statusCode}: $respBody");
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '❌ Failed to submit activity: ${streamedResp.statusCode}',
-            ),
-          ),
+          SnackBar(content: Text('Failed to submit activity (${streamedResp.statusCode}).')),
         );
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      print("❌ Exception while submitting: $e");
+      debugPrint("Exception while submitting: $e");
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('⚠️ Error occurred while submitting. $e')),
+        SnackBar(content: Text('Error occurred while submitting: $e')),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _participantsController.dispose();
+    super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
     selectedDate = DateTime.now();
-
-    // auto-select today
   }
 
   List<File> selectedFiles = [];
@@ -3536,23 +3698,24 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
 
                 SizedBox(height: 16),
 
-                // Select School - default set to 'Heal School' (editable)
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        decoration: _inputDecoration(
-                          selectedSchool ?? "School Not Selected ",
-                        ),
-                        value: selectedSchool,
-                        validator: (v) => v == null ? 'Required' : null,
-                        menuMaxHeight: 200,
-                        items: [],
-                        onChanged: (String? value) {},
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.school, color: Colors.grey[600], size: 20),
+                      const SizedBox(width: 12),
+                      Text(
+                        selectedSchool ?? 'Detecting school...',
+                        style: const TextStyle(fontSize: 15),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
 
                 SizedBox(height: 12),
@@ -3608,6 +3771,27 @@ class _ActivityFormSheetState extends State<ActivityFormSheet> {
                   ),
                   onSaved: (v) => activityType = v,
                   validator: (v) => v!.isEmpty ? 'Required' : null,
+                ),
+
+                // Participants count
+                SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _participantsController,
+                        keyboardType: TextInputType.number,
+                        decoration: _inputDecoration('No. of Participants'),
+                        onSaved: (v) =>
+                            _participantsCount = int.tryParse(v ?? '0') ?? 0,
+                        validator: (v) {
+                          final n = int.tryParse(v ?? '');
+                          if (n == null || n < 0) return 'Enter a valid count';
+                          return null;
+                        },
+                      ),
+                    ),
+                  ],
                 ),
 
                 // Date picker (unchanged)
@@ -3746,23 +3930,48 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
-  final List<String> schools = [
-    'Heal School',
-    'Srmc Krishna',
-    'Share & Care',
-    'Gannavaram',
-    'GannavaramG',
-    'Kesarapalli',
-    'Davajigudem',
-    'Golnapalli',
-    'MK Baig MC',
-    'KBC ZP Boys',
-    'CVR HighSchool',
-  ];
+  final List<String> schools = kSchools;
+  final int totalPTs = 11;
+  int totalActivities = 0;
+  int _todayCount = 0;
+  Map<String, int> _perSchoolCounts = {};
+  bool _loadingStats = true;
 
-  int totalPTs = 11; // example count
-  int totalBills = 25; // example count
-  int totalSportsAdmins = 5; // example count
+  @override
+  void initState() {
+    super.initState();
+    _fetchStats();
+  }
+
+  Future<void> _fetchStats() async {
+    try {
+      final response = await http.get(Uri.parse('https://api.chandus7.in/getsportsdailyactivity'));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        final counts = <String, int>{};
+        final now = DateTime.now();
+        final todayStr = '${now.month}/${now.day}/${now.year}';
+        int todayC = 0;
+        for (final item in data) {
+          final school = (item['school'] as String?) ?? '';
+          counts[school] = (counts[school] ?? 0) + 1;
+          if ((item['date'] as String?) == todayStr) todayC++;
+        }
+        if (mounted) {
+          setState(() {
+            totalActivities = data.length;
+            _perSchoolCounts = counts;
+            _todayCount = todayC;
+            _loadingStats = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _loadingStats = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingStats = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -3776,7 +3985,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 children: [
                   UserAccountsDrawerHeader(
                     accountName: Text(widget.username),
-                    accountEmail: Text(UserSession.getUsername().toString()),
+                    accountEmail: const Text("Administrator"),
 
                     currentAccountPicture: FutureBuilder<String?>(
                       future: Future.value(null),
@@ -3805,9 +4014,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     leading: const Icon(Icons.person),
                     title: const Text("Profile"),
                     onTap: () {
-                      print("Profile tapped");
                       Navigator.pop(context);
-
                       // Close the drawer
                     },
                   ),
@@ -3849,7 +4056,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         context,
                         MaterialPageRoute(builder: (context) => AboutAppPage()),
                       );
-                      // Close cthe drawer
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.logout),
+                    title: const Text("Logout"),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.clear();
+                      if (!context.mounted) return;
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => LoginPage()),
+                        (route) => false,
+                      );
                     },
                   ),
                 ],
@@ -3872,143 +4093,247 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ---------- Profile Bar ----------
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+            // ── Gradient header ──────────────────────────
+            Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF0D1B2A), Color(0xFF1565C0)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 35,
-                      backgroundImage: AssetImage(
-                        "assets/imgicon1.png",
-                      ), // replace with your admin image
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        "Mr. Admin Name",
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        child: const Icon(Icons.admin_panel_settings,
+                            color: Colors.white, size: 26),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // ---------- 2x2 Dashboard Cards ----------
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.3,
-              children: [
-                _buildDashboardCard("Schools", schools.length, Icons.school),
-                _buildDashboardCard("PTs", totalPTs, Icons.person),
-                _buildDashboardCard("Bills", totalBills, Icons.receipt_long),
-                _buildDashboardCard(
-                  "Sports Admin",
-                  totalSportsAdmins,
-                  Icons.sports_soccer,
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // ---------- Schools Table ----------
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Schools List",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Divider(),
-                    Column(
-                      children: schools
-                          .map(
-                            (school) => ListTile(
-                              leading: const Icon(Icons.school),
-                              title: Text(school),
-                              trailing: const Icon(Icons.arrow_forward_ios),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => SchoolsHomePage(
-                                      username: widget.username,
-                                    ),
-                                  ),
-                                );
-                                // Navigate to school details page
-                              },
+                      const SizedBox(width: 14),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            "SportsForChange",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
                             ),
-                          )
-                          .toList(),
-                    ),
-                  ],
-                ),
+                          ),
+                          Text(
+                            "Administrator Dashboard",
+                            style: TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // Stats row
+                  Row(
+                    children: [
+                      _adminStatTile(
+                        _loadingStats ? '—' : '$totalActivities',
+                        "Total",
+                        Icons.sports,
+                      ),
+                      const SizedBox(width: 8),
+                      _adminStatTile(
+                        _loadingStats ? '—' : '$_todayCount',
+                        "Today",
+                        Icons.today,
+                      ),
+                      const SizedBox(width: 8),
+                      _adminStatTile('${schools.length}', "Schools", Icons.school),
+                      const SizedBox(width: 8),
+                      _adminStatTile('$totalPTs', "PTs", Icons.people),
+                    ],
+                  ),
+                ],
               ),
             ),
 
-            const SizedBox(height: 20),
-
-            // ---------- Announcements ----------
-            Card(
-              color: Colors.orange[50],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      "Announcements",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+            // ── Quick actions ────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+              child: Row(
+                children: [
+                  _adminQuickAction(
+                    "All Records",
+                    Icons.list_alt_outlined,
+                    const Color(0xFFE3F2FD),
+                    const Color(0xFF1565C0),
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SchoolsHomePage(username: widget.username),
                       ),
                     ),
-                    Divider(),
-                    ListTile(
-                      leading: Icon(Icons.campaign),
-                      title: Text("Sports event on Oct 10th"),
+                  ),
+                  const SizedBox(width: 10),
+                  _adminQuickAction(
+                    "Send Notification",
+                    Icons.notifications_outlined,
+                    const Color(0xFFFFF3E0),
+                    const Color(0xFFE65100),
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => SportsChatScreen()),
                     ),
-                    ListTile(
-                      leading: Icon(Icons.campaign),
-                      title: Text("Fee due reminder for PTs"),
+                  ),
+                  const SizedBox(width: 10),
+                  _adminQuickAction(
+                    "Settings",
+                    Icons.settings_outlined,
+                    const Color(0xFFE8F5E9),
+                    const Color(0xFF2E7D32),
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => SettingsPage()),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            ),
+
+            // ── Schools overview ─────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+              child: Row(
+                children: [
+                  const Text(
+                    "Schools Activity Overview",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  if (_loadingStats)
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                ],
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: schools.map((school) {
+                  final count = _perSchoolCounts[school] ?? 0;
+                  final maxC = totalActivities > 0 ? totalActivities : 1;
+                  final progress = (count / maxC).clamp(0.0, 1.0);
+                  return GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SchoolsHomePage(username: widget.username),
+                      ),
+                    ),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.school_outlined,
+                                  size: 16, color: Colors.blueAccent),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  school,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '$count ${count == 1 ? 'activity' : 'activities'}',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey.shade600),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.chevron_right,
+                                  size: 16, color: Colors.grey),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              backgroundColor: Colors.grey.shade200,
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF1565C0)),
+                              minHeight: 5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _adminStatTile(String value, String label, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: Colors.white, size: 18),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold),
+            ),
+            Text(
+              label,
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.8), fontSize: 10),
             ),
           ],
         ),
@@ -4016,23 +4341,34 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _buildDashboardCard(String title, int count, IconData icon) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40, color: Colors.blue),
-            const SizedBox(height: 7),
-            Text(
-              "$count",
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            Text(title, style: const TextStyle(fontSize: 16)),
-          ],
+  Widget _adminQuickAction(
+    String label,
+    IconData icon,
+    Color bg,
+    Color fg,
+    VoidCallback onTap,
+  ) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: fg, size: 24),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w600, color: fg),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -4057,8 +4393,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   Future<void> loadImages() async {
     final dir = await getApplicationDocumentsDirectory();
+    final folder = Directory("${dir.path}/gps_photos");
 
-    final files = Directory("${dir.path}/gps_photos")
+    if (!folder.existsSync()) {
+      setState(() => images = []);
+      return;
+    }
+
+    final files = folder
         .listSync()
         .where(
           (item) =>
@@ -4323,7 +4665,6 @@ class AppGallerySelectionScreen extends StatefulWidget {
   const AppGallerySelectionScreen({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _AppGallerySelectionScreenState createState() =>
       _AppGallerySelectionScreenState();
 }
@@ -4572,22 +4913,23 @@ class BufferPopup {
     // Show the success dialog
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Padding(
-            padding: EdgeInsets.fromLTRB(5, 10, 0, 0),
-            child: Text(text3, style: TextStyle()),
+            padding: const EdgeInsets.fromLTRB(5, 10, 0, 0),
+            child: Text(text3),
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.push(
+                Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (context) => LoginPage()),
+                  MaterialPageRoute(builder: (_) => LoginPage()),
+                  (route) => false,
                 );
-                // Close the success dialog
               },
-              child: const Text("Exit"),
+              child: const Text("OK"),
             ),
           ],
         );

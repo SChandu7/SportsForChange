@@ -4,14 +4,13 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'dart:convert';
 import 'resource.dart';
 import 'loginsignup.dart';
 import 'schools.dart';
-
+import 'package:http/http.dart' as http;
 
 List<CameraDescription> cameras = [];
-
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +46,20 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    trackAppVisit();
+  }
+
+  final String _appName = "SportsForChange"; // ✅ change this per app
+  // "chandus7" / "app3" / "app4" etc.
+
+  Future<void> trackAppVisit() async {
+    try {
+      await http.post(
+        Uri.parse("https://api.chandus7.in/api/track-visit/"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"app_name": _appName}),
+      );
+    } catch (_) {}
   }
 
   @override

@@ -32,10 +32,7 @@ class popup extends StatelessWidget {
               const Text('This is the content of the popup.'),
               const SizedBox(height: 10),
               ElevatedButton(
-                onPressed: () {
-                  print("Popup button pressed!");
-                  Navigator.of(context).pop(); // Close the popup
-                },
+                onPressed: () => Navigator.of(context).pop(),
                 child: const Text("Close Popup"),
               ),
             ],

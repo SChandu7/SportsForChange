@@ -23,6 +23,8 @@ class _CameraScreenState extends State<CameraScreen> {
   CameraController? controller;
   bool ready = false;
   String watermarkText = "Loading...";
+  String _latLng = "";
+  bool _isCapturing = false;
 
   bool isFrontCamera = false;
   bool isVideoMode = false;
@@ -46,12 +48,22 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> initCamera() async {
-    controller = CameraController(widget.cameras.first, ResolutionPreset.high);
+    controller = CameraController(
+      widget.cameras.first,
+      ResolutionPreset.high,
+      enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.jpeg,
+    );
     await controller!.initialize();
     setState(() => ready = true);
   }
 
   Future<void> fetchLocation() async {
+    // Show time immediately so capture is never blocked
+    setState(() {
+      watermarkText = DateFormat('dd MMM yyyy • hh:mm a').format(DateTime.now());
+    });
+
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -70,24 +82,32 @@ class _CameraScreenState extends State<CameraScreen> {
 
     Position pos = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.best,
-      timeLimit: Duration(seconds: 15),
+      timeLimit: const Duration(seconds: 15),
     );
 
-    List<Placemark> placemarks = await placemarkFromCoordinates(
-      pos.latitude,
-      pos.longitude,
-    );
+    // Update lat/lng badge immediately after GPS fix
+    if (mounted) {
+      setState(() {
+        _latLng = "Lat: ${pos.latitude.toStringAsFixed(5)}, Lon: ${pos.longitude.toStringAsFixed(5)}";
+        watermarkText =
+            "${DateFormat('dd MMM yyyy • hh:mm a').format(DateTime.now())}\n"
+            "$_latLng";
+      });
+    }
 
-    Placemark place = placemarks.first;
-
-    String address = cleanAddress(place);
-
-    setState(() {
-      watermarkText =
-          "${DateFormat('dd MMM yyyy • hh:mm a').format(DateTime.now())}\n"
-          "📍 $address\n"
-          "Lat: ${pos.latitude.toStringAsFixed(5)}, Lon: ${pos.longitude.toStringAsFixed(5)}";
-    });
+    // Then add address when geocoding completes
+    try {
+      final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+      final address = cleanAddress(placemarks.first);
+      if (mounted) {
+        setState(() {
+          watermarkText =
+              "${DateFormat('dd MMM yyyy • hh:mm a').format(DateTime.now())}\n"
+              "📍 $address\n"
+              "$_latLng";
+        });
+      }
+    } catch (_) {}
   }
 
   String cleanAddress(Placemark place) {
@@ -100,6 +120,8 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> capturePhoto() async {
+    if (_isCapturing) return;
+    setState(() => _isCapturing = true);
     final xFile = await controller!.takePicture();
     Uint8List originalBytes = await xFile.readAsBytes();
 
@@ -171,10 +193,8 @@ class _CameraScreenState extends State<CameraScreen> {
     File file = File(filePath);
     await file.writeAsBytes(finalBytes);
 
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   SnackBar(content: Text("📁 Saved with watermark:\n$filePath")),
-    // );
     showMiniToast("📸 Photo Saved");
+    if (mounted) setState(() => _isCapturing = false);
   }
 
   Future<void> switchCamera() async {
@@ -313,15 +333,24 @@ class _CameraScreenState extends State<CameraScreen> {
                         ),
                 ),
 
-                // ✅ Watermark bottom-left
+                // Capture flash overlay
+                if (_isCapturing)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedOpacity(
+                        opacity: _isCapturing ? 0.35 : 0.0,
+                        duration: const Duration(milliseconds: 80),
+                        child: Container(color: Colors.white),
+                      ),
+                    ),
+                  ),
+
+                // Watermark info — bottom left
                 Positioned(
                   left: 10,
                   top: 10,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.45),
                       borderRadius: BorderRadius.circular(8),
@@ -339,21 +368,46 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                 ),
 
-                // 📸 Stylish Capture Button
-                // 📸 Stylish Capture Button (Fixed)
+                // Lat/Lng badge — top right
+                if (_latLng.isNotEmpty)
+                  Positioned(
+                    right: 10,
+                    top: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.75),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.location_on, color: Colors.white, size: 13),
+                          const SizedBox(width: 4),
+                          Text(
+                            _latLng,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                // Capture button
                 Positioned(
                   bottom: 65,
                   left: 0,
                   right: 0,
                   child: GestureDetector(
-                    onTap: () {
-                      if (watermarkText == "Getting Location?.....") return;
-                      isVideoMode ? recordVideo() : capturePhoto();
-                    },
+                    onTapDown: (_) => isVideoMode ? recordVideo() : capturePhoto(),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      height: isRecording ? 95 : 88,
-                      width: isRecording ? 95 : 88,
+                      duration: const Duration(milliseconds: 100),
+                      height: (_isCapturing || isRecording) ? 95 : 88,
+                      width: (_isCapturing || isRecording) ? 95 : 88,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         boxShadow: [
@@ -363,15 +417,19 @@ class _CameraScreenState extends State<CameraScreen> {
                               blurRadius: 25,
                               spreadRadius: 8,
                             ),
+                          if (_isCapturing)
+                            BoxShadow(
+                              color: Colors.white.withOpacity(0.5),
+                              blurRadius: 20,
+                              spreadRadius: 4,
+                            ),
                         ],
                         gradient: LinearGradient(
                           colors: isVideoMode
                               ? [Colors.redAccent, Colors.deepOrange]
-                              : [
-                                  Colors.blueAccent,
-                                  Colors.purpleAccent,
-                                  Colors.orangeAccent,
-                                ],
+                              : _isCapturing
+                                  ? [Colors.white70, Colors.white]
+                                  : [Colors.blueAccent, Colors.purpleAccent, Colors.orangeAccent],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -382,7 +440,7 @@ class _CameraScreenState extends State<CameraScreen> {
                               ? (isRecording ? Icons.stop : Icons.videocam)
                               : Icons.camera_alt,
                           size: isRecording ? 40 : 35,
-                          color: Colors.white,
+                          color: _isCapturing ? Colors.grey[700] : Colors.white,
                         ),
                       ),
                     ),
